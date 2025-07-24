@@ -55,7 +55,7 @@ function inicializarMapa() {
 async function carregarDados() {
     mostrarLoading(true);
     try {
-        const response = await fetch('http://localhost:8000/api/dados_mapa' );
+        const response = await fetch('https://github.com/neton08/mapa-interativo-slc' );
         if (!response.ok) throw new Error(`Erro HTTP: ${response.status}`);
         dadosOriginais = await response.json();
         dadosFiltrados = JSON.parse(JSON.stringify(dadosOriginais)); // Cópia profunda
@@ -357,4 +357,3 @@ function ajustarVisualizacao(fazendasAgrupadas) {
 
 function mostrarLoading(mostrar) {
     document.getElementById('loading-overlay').classList.toggle('hidden', !mostrar);
-}
