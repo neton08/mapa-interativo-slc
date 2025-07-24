@@ -4,24 +4,39 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mapa de Atuação Territorial - SLC</title>
-    
-    <!-- Leaflet MarkerCluster CSS -->
+    <link rel="icon" href="data:,"> <!-- Adicionado para resolver erro favicon -->
+
+    <!-- React e Babel -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
-    
-    <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     
-    <!-- Font Awesome para ícones -->
+    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- CSS customizado -->
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <!-- Container de Gerenciamento de Usuários (POSICIONADO CORRETAMENTE) -->
+    <div id="user-management-container" style="display: none; position: fixed; top: 50px; left: 50%; transform: translateX(-50%); width: 80%; max-width: 900px; background: white; z-index: 1000; padding: 20px; border-radius: 8px; box-shadow: 0 0 20px rgba(0,0,0,0.2);">
+        <button id="close-user-management" style="position: absolute; top: 10px; right: 10px; background: #ff4444; color: white; border: none; width: 30px; height: 30px; border-radius: 50%; cursor: pointer;">X</button>
+        <div id="user-management-root"></div>
+    </div>
+
     <!-- Painel de Filtros Superior -->
     <div class="top-panel">
         <div class="filters-container">
+            <!-- BOTÃO CORRIGIDO - FORMATADO CORRETAMENTE -->
+            <button id="open-user-management" class="management-btn" style="padding: 8px 15px; background: #4a6baf; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px;">
+                <i class="fas fa-users-cog"></i> Gerenciar Usuários
+            </button>
+            
             <div class="filter-group">
                 <label for="gestor-filter">Gestor:</label>
                 <select id="gestor-filter">
@@ -51,109 +66,30 @@
         </div>
     </div>
 
+    <!-- [Mantenha todo o resto do seu HTML exatamente como está] -->
     <!-- Painel de Estatísticas -->
     <div class="stats-panel">
-        <div class="stat-item">
-            <div class="stat-number" id="total-unidades">0</div>
-            <div class="stat-label">Unidades</div>
-        </div>
-        <div class="stat-item">
-            <div class="stat-number" id="total-especialistas">0</div>
-            <div class="stat-label">Especialistas</div>
-        </div>
-        <div class="stat-item">
-            <div class="stat-number" id="distancia-media">0 km</div>
-            <div class="stat-label">Distância Média</div>
-        </div>
+        [...]
     </div>
 
-    <!-- Container Principal do Mapa -->
+    <!-- Container do Mapa -->
     <div class="map-container">
-        <!-- Controles de Camadas -->
-        <div class="layer-controls">
-            <div class="layer-group">
-                <label class="radio-container">
-                    <input type="radio" name="base-layer" value="osm" checked>
-                    <span class="radio-checkmark"></span>
-                    OpenStreetMap
-                </label>
-                <label class="radio-container">
-                    <input type="radio" name="base-layer" value="topo">
-                    <span class="radio-checkmark"></span>
-                    OpenTopoMap
-                </label>
-                <label class="radio-container">
-                    <input type="radio" name="base-layer" value="satellite">
-                    <span class="radio-checkmark"></span>
-                    Satélite
-                </label>
-            </div>
-            
-            <div class="overlay-group">
-                <label class="checkbox-container">
-                    <input type="checkbox" id="show-colaboradores" checked>
-                    <span class="checkmark"></span>
-                    Colaboradores
-                </label>
-                <label class="checkbox-container">
-                    <input type="checkbox" id="show-fazendas" checked>
-                    <span class="checkmark"></span>
-                    Fazendas
-                </label>
-                <label class="checkbox-container">
-                    <input type="checkbox" id="show-rotas" checked>
-                    <span class="checkmark"></span>
-                    Rotas
-                </label>
-                <label class="checkbox-container">
-                    <input type="checkbox" id="show-areas" checked>
-                    <span class="checkmark"></span>
-                    Áreas de Atuação
-                </label>
-            </div>
-        </div>
-
-        <!-- Barra de Pesquisa -->
-        <div class="search-container">
-            <input type="text" id="search-input" placeholder="Pesquisar fazenda...">
-            <button id="search-btn">
-                <i class="fas fa-search"></i>
-            </button>
-        </div>
-
-        <!-- Mapa -->
-        <div id="map"></div>
-
-        <!-- Botão de Tela Cheia -->
-        <button id="fullscreen-btn" class="fullscreen-btn">
-            <i class="fas fa-expand"></i>
-        </button>
+        [...]
     </div>
 
-    <!-- Painel de Legenda -->
-    <div class="legend-panel">
-        <div class="legend-header">
-            <h3>Legenda</h3>
-            <button id="toggle-legend" class="toggle-btn">
-                <i class="fas fa-chevron-up"></i>
-            </button>
-        </div>
-        <div class="legend-content" id="legend-content">
-            <!-- Legenda será preenchida dinamicamente pelo JavaScript -->
-        </div>
-    </div>
-
-    <!-- Loading Overlay -->
-    <div id="loading-overlay" class="loading-overlay">
-        <div class="loading-spinner">
-            <i class="fas fa-spinner fa-spin"></i>
-            <p>Carregando dados do mapa...</p>
-        </div>
-    </div>
+    <!-- [Todos os outros elementos permanecem iguais] -->
 
     <!-- Scripts -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+    
+    <!-- Verifique se estes arquivos existem ou comente temporariamente -->
+    <!--
+    <script src="components/AddUserForm.js" type="text/babel"></script>
+    <script src="components/UserList.js" type="text/babel"></script>
+    <script src="userManagement.js" type="text/babel"></script>
+    -->
+    
     <script src="script.js"></script>
 </body>
 </html>
