@@ -231,25 +231,57 @@ function UserTable({ data }) {
 
 // --- INICIALIZAÇÃO ---
 function inicializarAplicacao() {
-    // Verifica se os elementos essenciais existem
-    if (!document.getElementById('map') || !document.getElementById('user-management-root')) {
-        console.error('Elementos essenciais do DOM não encontrados');
-        return;
+    // Lista de elementos essenciais que devem existir
+    const elementosEssenciais = [
+        'map',
+        'user-management-root',
+        'user-management-container',
+        'open-user-management',
+        'close-user-management'
+    ];
+
+    // Verifica cada elemento
+    const elementosFaltantes = elementosEssenciais.filter(id => !document.getElementById(id));
+
+    if (elementosFaltantes.length > 0) {
+        console.error('Elementos do DOM não encontrados:', elementosFaltantes);
+        
+        // Mostra mensagem amigável (opcional)
+        const mensagem = document.createElement('div');
+        mensagem.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background: #ff4444;
+            color: white;
+            padding: 15px;
+            z-index: 9999;
+            text-align: center;
+        `;
+        mensagem.textContent = `Erro: Elementos (${elementosFaltantes.join(', ')}) não encontrados. Verifique o HTML.`;
+        document.body.prepend(mensagem);
+        
+        return; // Interrompe a execução
     }
 
+    // Se todos elementos existem, continua a inicialização
     try {
+        console.log('Inicializando aplicação...');
         inicializarMapa();
         carregarDados();
         configurarEventListeners();
         
-        // Renderização inicial do gerenciamento de usuários
+        // Renderização inicial do React
         ReactDOM.render(
             React.createElement(renderUserManagement),
             document.getElementById('user-management-root')
         );
+        
+        console.log('Aplicação inicializada com sucesso');
     } catch (error) {
-        console.error('Erro na inicialização:', error);
-        alert('Ocorreu um erro ao iniciar a aplicação. Verifique o console para detalhes.');
+        console.error('Erro durante a inicialização:', error);
+        alert('Erro crítico ao iniciar a aplicação. Verifique o console para detalhes.');
     }
 }
 
