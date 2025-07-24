@@ -87,7 +87,7 @@ function formatarDistancia(distanciaEmMetros) {
     return (distanciaEmMetros / 1000).toFixed(1) + ' km';
 }
 
-// --- GERENCIAMENTO DE USUÁRIOS ---
+// --- COMPONENTES REACT ---
 function UserManagement() {
     const [gestores, setGestores] = React.useState([]);
     const [colaboradores, setColaboradores] = React.useState([]);
@@ -229,71 +229,32 @@ function UserTable({ data }) {
     );
 }
 
-// --- INICIALIZAÇÃO ---
-function inicializarAplicacao() {
-    // Lista de elementos essenciais que devem existir
-    const elementosEssenciais = [
-        'map',
-        'user-management-root',
-        'user-management-container',
-        'open-user-management',
-        'close-user-management'
-    ];
-
-    // Verifica cada elemento
-    const elementosFaltantes = elementosEssenciais.filter(id => !document.getElementById(id));
-
-    if (elementosFaltantes.length > 0) {
-        console.error('Elementos do DOM não encontrados:', elementosFaltantes);
-        
-        // Mostra mensagem amigável
-        const mensagem = document.createElement('div');
-        mensagem.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            background: #ff4444;
-            color: white;
-            padding: 15px;
-            z-index: 9999;
-            text-align: center;
-        `;
-        mensagem.textContent = `Erro: Elementos (${elementosFaltantes.join(', ')}) não encontrados. Verifique o HTML.`;
-        document.body.prepend(mensagem);
-        
-        return; // Interrompe a execução
-    }
-
-    // Se todos elementos existem, continua a inicialização
-    try {
-        console.log('Inicializando aplicação...');
-        inicializarMapa();
-        carregarDados();
-        configurarEventListeners();
-        
-        // Renderização inicial do React
-        ReactDOM.render(
-            React.createElement(UserManagement),
-            document.getElementById('user-management-root')
-        );
-        
-        console.log('Aplicação inicializada com sucesso');
-    } catch (error) {
-        console.error('Erro durante a inicialização:', error);
-        alert('Erro crítico ao iniciar a aplicação. Verifique o console para detalhes.');
-    }
-}
-
-document.addEventListener('DOMContentLoaded', inicializarAplicacao);
-
+// --- INICIALIZAÇÃO DO MAPA ---
 function inicializarMapa() {
-    map = L.map('map', { center: [-15.7, -47.9], zoom: 5, zoomControl: true });
+    const mapElement = document.getElementById('map');
+    if (!mapElement) {
+        console.error('Elemento do mapa não encontrado');
+        return;
+    }
+
+    // Verifica se o elemento do mapa já foi inicializado
+    if (mapElement._leaflet_id) {
+        console.warn('Mapa já foi inicializado');
+        return;
+    }
+
+    map = L.map('map', { 
+        center: [-15.7, -47.9], 
+        zoom: 5, 
+        zoomControl: true 
+    });
+
     camadasBase.osm.addTo(map);
     map.zoomControl.setPosition('bottomleft');
     Object.values(camadasVisiveis).forEach(layer => layer.addTo(map));
 }
 
+// --- CARREGAMENTO DE DADOS ---
 async function carregarDados() {
     mostrarLoading(true);
     try {
@@ -311,9 +272,13 @@ async function carregarDados() {
     }
 }
 
+// --- PROCESSAMENTO DE DADOS ---
 function processarDados() {
-    Object.values(camadasVisiveis).forEach(layer => layer.clearLayers());
-    if (!dadosFiltrados) return;
+    if (!camadasVisiveis || !dadosFiltrados) return;
+
+    Object.values(camadasVisiveis).forEach(layer => {
+        if (layer && layer.clearLayers) layer.clearLayers();
+    });
 
     const fazendasAgrupadas = agruparFazendas(dadosFiltrados.fazendas);
     
@@ -354,6 +319,8 @@ function agruparFazendas(listaDePoligonos) {
 }
 
 function desenharFazendasEIcones(fazendasAgrupadas) {
+    if (!camadasVisiveis.fazendas || !map) return;
+
     Object.values(fazendasAgrupadas).forEach(fazenda => {
         const cor = getCorEspecialista(fazenda.especialista);
         const especialistaInfo = dadosOriginais.especialistas.find(e => e.nome === fazenda.especialista);
@@ -382,6 +349,8 @@ function desenharFazendasEIcones(fazendasAgrupadas) {
 }
 
 function desenharEspecialistas(fazendasAgrupadas) {
+    if (!camadasVisiveis.especialistas || !dadosOriginais.especialistas) return;
+
     const fazendasPorEspecialista = {};
     Object.values(fazendasAgrupadas).forEach(f => {
         if (!fazendasPorEspecialista[f.especialista]) fazendasPorEspecialista[f.especialista] = [];
@@ -411,6 +380,8 @@ function desenharEspecialistas(fazendasAgrupadas) {
 }
 
 async function desenharRotas(fazendasAgrupadas) {
+    if (!camadasVisiveis.rotas || !map) return 0;
+
     const especialistas = dadosOriginais.especialistas.reduce((acc, e) => {
         if (e.latitude_base && e.longitude_base) {
             acc[e.nome] = { lat: e.latitude_base, lon: e.longitude_base };
@@ -448,6 +419,8 @@ async function desenharRotas(fazendasAgrupadas) {
 }
 
 function desenharAreasAtuacao(fazendasAgrupadas) {
+    if (!camadasVisiveis.areas || !dadosOriginais.especialistas) return;
+
     const fazendasPorEspecialista = {};
     Object.values(fazendasAgrupadas).forEach(f => {
         if (!fazendasPorEspecialista[f.especialista]) fazendasPorEspecialista[f.especialista] = [];
@@ -485,6 +458,8 @@ function criarIconeFazenda(cor) {
 }
 
 function calcularDistancias(especialista, fazendas) {
+    if (!map || !especialista.latitude_base) return { maxDist: 0, avgDist: 0 };
+
     const distancias = fazendas.map(f => {
         const p1 = L.latLng(especialista.latitude_base, especialista.longitude_base);
         const p2 = L.latLng(f.centroideGeral[0], f.centroideGeral[1]);
@@ -496,17 +471,24 @@ function calcularDistancias(especialista, fazendas) {
 }
 
 function atualizarEstatisticas(fazendasAgrupadas, distanciaTotal) {
+    if (!fazendasAgrupadas) return;
+
     const totalUnidades = Object.keys(fazendasAgrupadas).length;
-    document.getElementById('total-unidades').textContent = totalUnidades;
-    document.getElementById('total-especialistas').textContent = new Set(Object.values(fazendasAgrupadas).map(f => f.especialista)).size;
-    
+    const totalEspecialistas = new Set(Object.values(fazendasAgrupadas).map(f => f.especialista)).size;
     const distanciaMedia = totalUnidades > 0 ? distanciaTotal / totalUnidades : 0;
-    document.getElementById('distancia-media').textContent = formatarDistancia(distanciaMedia);
+
+    const totalUnidadesElement = document.getElementById('total-unidades');
+    const totalEspecialistasElement = document.getElementById('total-especialistas');
+    const distanciaMediaElement = document.getElementById('distancia-media');
+
+    if (totalUnidadesElement) totalUnidadesElement.textContent = totalUnidades;
+    if (totalEspecialistasElement) totalEspecialistasElement.textContent = totalEspecialistas;
+    if (distanciaMediaElement) distanciaMediaElement.textContent = formatarDistancia(distanciaMedia);
 }
 
 function criarLegenda() {
     const legendaContent = document.getElementById('legend-content');
-    if (!legendaContent) return;
+    if (!legendaContent || !dadosFiltrados) return;
     
     legendaContent.innerHTML = '';
     const contadores = {};
@@ -526,8 +508,9 @@ function criarLegenda() {
 
 function aplicarFiltros() {
     if (!dadosOriginais) return;
-    const gestorSel = document.getElementById('gestor-filter').value;
-    const especialistaSel = document.getElementById('especialista-filter').value;
+
+    const gestorSel = document.getElementById('gestor-filter')?.value || '';
+    const especialistaSel = document.getElementById('especialista-filter')?.value || '';
     
     let especialistasFiltradosNomes = dadosOriginais.especialistas.map(e => e.nome);
     if (gestorSel) {
@@ -543,13 +526,12 @@ function aplicarFiltros() {
 }
 
 function configurarEventListeners() {
-    // Verifica se os elementos existem antes de adicionar listeners
     const addListener = (id, event, handler) => {
         const element = document.getElementById(id);
         if (element) {
             element.addEventListener(event, handler);
         } else {
-            console.error(`Elemento com ID ${id} não encontrado`);
+            console.warn(`Elemento com ID ${id} não encontrado para listener`);
         }
     };
 
@@ -557,10 +539,14 @@ function configurarEventListeners() {
     addListener('gestor-filter', 'change', aplicarFiltros);
     addListener('especialista-filter', 'change', aplicarFiltros);
     addListener('resetar-filtros', 'click', () => {
-        document.getElementById('gestor-filter').value = '';
-        document.getElementById('especialista-filter').value = '';
-        dadosFiltrados = JSON.parse(JSON.stringify(dadosOriginais));
-        processarDados();
+        const gestorFilter = document.getElementById('gestor-filter');
+        const especialistaFilter = document.getElementById('especialista-filter');
+        if (gestorFilter) gestorFilter.value = '';
+        if (especialistaFilter) especialistaFilter.value = '';
+        if (dadosOriginais) {
+            dadosFiltrados = JSON.parse(JSON.stringify(dadosOriginais));
+            processarDados();
+        }
     });
 
     // Camadas base
@@ -582,7 +568,6 @@ function configurarEventListeners() {
         const container = document.getElementById('user-management-container');
         if (container) {
             container.style.display = 'block';
-            // Força nova renderização ao abrir
             ReactDOM.render(
                 React.createElement(UserManagement),
                 document.getElementById('user-management-root')
@@ -598,28 +583,43 @@ function configurarEventListeners() {
 
 function preencherFiltros() {
     if (!dadosOriginais) return;
+
     const gestorSelect = document.getElementById('gestor-filter');
     const especialistaSelect = document.getElementById('especialista-filter');
     if (!gestorSelect || !especialistaSelect) return;
     
     gestorSelect.innerHTML = '<option value="">Todos</option>';
     especialistaSelect.innerHTML = '<option value="">Todos</option>';
-    [...new Set(dadosOriginais.especialistas.map(e => e.gestor))].filter(Boolean).sort().forEach(g => gestorSelect.add(new Option(g, g)));
-    [...new Set(dadosOriginais.fazendas.map(f => f.especialista))].filter(Boolean).sort().forEach(e => especialistaSelect.add(new Option(e, e)));
+    
+    [...new Set(dadosOriginais.especialistas.map(e => e.gestor))].filter(Boolean).sort().forEach(g => {
+        gestorSelect.add(new Option(g, g));
+    });
+    
+    [...new Set(dadosOriginais.fazendas.map(f => f.especialista))].filter(Boolean).sort().forEach(e => {
+        especialistaSelect.add(new Option(e, e));
+    });
 }
 
 function toggleLayer(layer, isVisible) {
-    if (isVisible) map.addLayer(layer); else map.removeLayer(layer);
+    if (!map || !layer) return;
+    if (isVisible) map.addLayer(layer); 
+    else map.removeLayer(layer);
 }
 
 function ajustarVisualizacao(fazendasAgrupadas) {
+    if (!map || !fazendasAgrupadas) return;
+
     const bounds = new L.LatLngBounds();
     Object.values(fazendasAgrupadas).forEach(f => bounds.extend(f.centroideGeral));
-    dadosOriginais.especialistas.forEach(e => {
-        if (e.latitude_base && e.longitude_base && dadosFiltrados.fazendas.some(f => f.especialista === e.nome)) {
-            bounds.extend([e.latitude_base, e.longitude_base]);
-        }
-    });
+    
+    if (dadosOriginais?.especialistas) {
+        dadosOriginais.especialistas.forEach(e => {
+            if (e.latitude_base && e.longitude_base && dadosFiltrados.fazendas.some(f => f.especialista === e.nome)) {
+                bounds.extend([e.latitude_base, e.longitude_base]);
+            }
+        });
+    }
+    
     if (bounds.isValid()) map.fitBounds(bounds, { padding: [50, 50] });
 }
 
@@ -628,4 +628,59 @@ function mostrarLoading(mostrar) {
     if (loadingElement) {
         loadingElement.classList.toggle('hidden', !mostrar);
     }
+}
+
+// --- INICIALIZAÇÃO DA APLICAÇÃO ---
+function inicializarAplicacao() {
+    // Verificar elementos essenciais
+    const elementosEssenciais = ['map', 'user-management-root'];
+    const elementosFaltantes = elementosEssenciais.filter(id => !document.getElementById(id));
+
+    if (elementosFaltantes.length > 0) {
+        console.error('Elementos do DOM não encontrados:', elementosFaltantes);
+        
+        const mensagem = document.createElement('div');
+        mensagem.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background: #ff4444;
+            color: white;
+            padding: 15px;
+            z-index: 9999;
+            text-align: center;
+        `;
+        mensagem.textContent = `Erro: Elementos (${elementosFaltantes.join(', ')}) não encontrados. Verifique o HTML.`;
+        document.body.prepend(mensagem);
+        return;
+    }
+
+    try {
+        console.log('Inicializando aplicação...');
+        inicializarMapa();
+        carregarDados();
+        configurarEventListeners();
+        
+        // Renderização inicial do React
+        const userManagementRoot = document.getElementById('user-management-root');
+        if (userManagementRoot) {
+            ReactDOM.render(
+                React.createElement(UserManagement),
+                userManagementRoot
+            );
+        }
+        
+        console.log('Aplicação inicializada com sucesso');
+    } catch (error) {
+        console.error('Erro durante a inicialização:', error);
+        alert('Erro crítico ao iniciar a aplicação. Verifique o console para detalhes.');
+    }
+}
+
+// Iniciar a aplicação quando o DOM estiver pronto
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    setTimeout(inicializarAplicacao, 0);
+} else {
+    document.addEventListener('DOMContentLoaded', inicializarAplicacao);
 }
