@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapa de Atuação Territorial - SLC</title>
+    
+    <!-- Leaflet MarkerCluster CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- Font Awesome para ícones -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- CSS customizado -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Painel de Filtros Superior -->
+    <div class="top-panel">
+        <div class="filters-container">
+            <div class="filter-group">
+                <label for="gestor-filter">Gestor:</label>
+                <select id="gestor-filter">
+                    <option value="">Todos</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label for="especialista-filter">Especialista:</label>
+                <select id="especialista-filter">
+                    <option value="">Todos</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label class="checkbox-container">
+                    <input type="checkbox" id="mostrar-rotas" checked>
+                    <span class="checkmark"></span>
+                    Mostrar Rotas
+                </label>
+            </div>
+            
+            <button id="resetar-filtros" class="reset-btn">
+                <i class="fas fa-refresh"></i>
+                Resetar Filtros
+            </button>
+        </div>
+    </div>
+
+    <!-- Painel de Estatísticas -->
+    <div class="stats-panel">
+        <div class="stat-item">
+            <div class="stat-number" id="total-unidades">0</div>
+            <div class="stat-label">Unidades</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-number" id="total-especialistas">0</div>
+            <div class="stat-label">Especialistas</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-number" id="distancia-media">0 km</div>
+            <div class="stat-label">Distância Média</div>
+        </div>
+    </div>
+
+    <!-- Container Principal do Mapa -->
+    <div class="map-container">
+        <!-- Controles de Camadas -->
+        <div class="layer-controls">
+            <div class="layer-group">
+                <label class="radio-container">
+                    <input type="radio" name="base-layer" value="osm" checked>
+                    <span class="radio-checkmark"></span>
+                    OpenStreetMap
+                </label>
+                <label class="radio-container">
+                    <input type="radio" name="base-layer" value="topo">
+                    <span class="radio-checkmark"></span>
+                    OpenTopoMap
+                </label>
+                <label class="radio-container">
+                    <input type="radio" name="base-layer" value="satellite">
+                    <span class="radio-checkmark"></span>
+                    Satélite
+                </label>
+            </div>
+            
+            <div class="overlay-group">
+                <label class="checkbox-container">
+                    <input type="checkbox" id="show-colaboradores" checked>
+                    <span class="checkmark"></span>
+                    Colaboradores
+                </label>
+                <label class="checkbox-container">
+                    <input type="checkbox" id="show-fazendas" checked>
+                    <span class="checkmark"></span>
+                    Fazendas
+                </label>
+                <label class="checkbox-container">
+                    <input type="checkbox" id="show-rotas" checked>
+                    <span class="checkmark"></span>
+                    Rotas
+                </label>
+                <label class="checkbox-container">
+                    <input type="checkbox" id="show-areas" checked>
+                    <span class="checkmark"></span>
+                    Áreas de Atuação
+                </label>
+            </div>
+        </div>
+
+        <!-- Barra de Pesquisa -->
+        <div class="search-container">
+            <input type="text" id="search-input" placeholder="Pesquisar fazenda...">
+            <button id="search-btn">
+                <i class="fas fa-search"></i>
+            </button>
+        </div>
+
+        <!-- Mapa -->
+        <div id="map"></div>
+
+        <!-- Botão de Tela Cheia -->
+        <button id="fullscreen-btn" class="fullscreen-btn">
+            <i class="fas fa-expand"></i>
+        </button>
+    </div>
+
+    <!-- Painel de Legenda -->
+    <div class="legend-panel">
+        <div class="legend-header">
+            <h3>Legenda</h3>
+            <button id="toggle-legend" class="toggle-btn">
+                <i class="fas fa-chevron-up"></i>
+            </button>
+        </div>
+        <div class="legend-content" id="legend-content">
+            <!-- Legenda será preenchida dinamicamente pelo JavaScript -->
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-spinner">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>Carregando dados do mapa...</p>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
