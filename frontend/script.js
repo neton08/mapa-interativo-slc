@@ -1,17 +1,19 @@
 // Variáveis globais
-let map; // Declarado UMA SÓ VEZ AQUI
+let map;
 let dadosOriginais = null;
 let dadosFiltrados = null;
 let camadasVisiveis = {
-    especialistas: L.markerClusterGroup( ), 
+    especialistas: L.markerClusterGroup(), 
     fazendas: L.layerGroup(),
     rotas: L.layerGroup(),
     areas: L.layerGroup()
 };
+
+// Serviço para gerenciamento de usuários
 const UserService = {
     getGestores: async () => {
         try {
-            const response = await fetch('SUA_URL_DA_API?action=getGestores');
+            const response = await fetch('https://script.google.com/macros/s/AKfycbzeX-BznTzpYADcLUlCY8d8K5Q1bxUvZTN_jR1fLCWUZ-xUyMZ3wWoNGHpvtaUZatZ2pQ/exec?action=getGestores');
             return await response.json();
         } catch (error) {
             console.error('Erro ao buscar gestores:', error);
@@ -21,7 +23,7 @@ const UserService = {
 
     getColaboradores: async () => {
         try {
-            const response = await fetch('SUA_URL_DA_API?action=getColaboradores');
+            const response = await fetch('https://script.google.com/macros/s/AKfycbzeX-BznTzpYADcLUlCY8d8K5Q1bxUvZTN_jR1fLCWUZ-xUyMZ3wWoNGHpvtaUZatZ2pQ/exec?action=getColaboradores');
             return await response.json();
         } catch (error) {
             console.error('Erro ao buscar colaboradores:', error);
@@ -31,7 +33,7 @@ const UserService = {
 
     addGestor: async (gestorData) => {
         try {
-            const response = await fetch('SUA_URL_DA_API?action=addGestor', {
+            const response = await fetch('https://script.google.com/macros/s/AKfycbzeX-BznTzpYADcLUlCY8d8K5Q1bxUvZTN_jR1fLCWUZ-xUyMZ3wWoNGHpvtaUZatZ2pQ/exec?action=addGestor', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(gestorData)
@@ -45,7 +47,7 @@ const UserService = {
 
     addColaborador: async (colabData) => {
         try {
-            const response = await fetch('SUA_URL_DA_API?action=addColaborador', {
+            const response = await fetch('https://script.google.com/macros/s/AKfycbzeX-BznTzpYADcLUlCY8d8K5Q1bxUvZTN_jR1fLCWUZ-xUyMZ3wWoNGHpvtaUZatZ2pQ/exec?action=addColaborador', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(colabData)
@@ -57,6 +59,7 @@ const UserService = {
         }
     }
 };
+
 // Cores para cada especialista
 const coresEspecialistas = {
     'IGOR.DIAS': '#0ccf26ff', 'GIOVANI.CATAPAN': '#27ae60', 'ALYNE.SOUZA': '#3498db',
@@ -67,17 +70,15 @@ const coresEspecialistas = {
 
 // Camadas base
 const camadasBase = {
-    'osm': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' } ),
-    'topo': L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { attribution: '© OpenTopoMap' } ),
-    'satellite': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: '© Esri' } )
+    'osm': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }),
+    'topo': L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { attribution: '© OpenTopoMap' }),
+    'satellite': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: '© Esri' })
 };
 
 // --- FUNÇÕES AUXILIARES ---
 function getCorEspecialista(nome) {
     if (!nome) return '#95a5a6';
     const nomeNormalizado = String(nome).trim().toUpperCase();
-     // ADICIONE ESTA LINHA PARA DEBUG:
-    console.log(`Tentando obter cor para: "'${nomeNormalizado}'"`); 
     return coresEspecialistas[nomeNormalizado] || '#95a5a6';
 }
 
@@ -85,10 +86,9 @@ function formatarDistancia(distanciaEmMetros) {
     if (isNaN(distanciaEmMetros)) return 'N/A';
     return (distanciaEmMetros / 1000).toFixed(1) + ' km';
 }
+
 // --- GERENCIAMENTO DE USUÁRIOS ---
 function renderUserManagement() {
-    const container = document.getElementById('user-management-root');
-    
     const [gestores, setGestores] = React.useState([]);
     const [colaboradores, setColaboradores] = React.useState([]);
     const [loading, setLoading] = React.useState(true);
@@ -142,7 +142,13 @@ function renderUserManagement() {
             })
         ),
         
-        // Lista de gestores e colaboradores...
+        React.createElement('div', null,
+            React.createElement('h2', null, 'Gestores Cadastrados'),
+            React.createElement(UserTable, { data: gestores }),
+            
+            React.createElement('h2', {style: {marginTop: '30px'}}, 'Colaboradores Cadastrados'),
+            React.createElement(UserTable, { data: colaboradores })
+        )
     );
 }
 
@@ -160,23 +166,32 @@ function AddUserForm({ onAddUser, userType }) {
         setFormData({});
     };
 
+    const fields = userType === 'gestor' ? [
+        { name: 'Nome', type: 'text', required: true },
+        { name: 'Email', type: 'email', required: true },
+        { name: 'Equipe', type: 'text', required: false }
+    ] : [
+        { name: 'ID', type: 'text', required: true },
+        { name: 'Nome', type: 'text', required: true },
+        { name: 'Função', type: 'text', required: false },
+        { name: 'Gestor Responsável', type: 'text', required: false }
+    ];
+
     return React.createElement('div', {style: {border: '1px solid #ccc', padding: '20px', marginBottom: '20px', borderRadius: '5px'}},
         React.createElement('form', {onSubmit: handleSubmit},
-            userType === 'gestor' ? [
-                React.createElement('div', {style: {marginBottom: '10px'}},
-                    React.createElement('label', {style: {display: 'block', marginBottom: '5px'}}, 'Nome:'),
+            fields.map(field => 
+                React.createElement('div', {key: field.name, style: {marginBottom: '10px'}},
+                    React.createElement('label', {style: {display: 'block', marginBottom: '5px'}}, `${field.name}:`),
                     React.createElement('input', {
-                        type: "text",
-                        name: "Nome",
-                        required: true,
+                        type: field.type,
+                        name: field.name,
+                        required: field.required,
                         onChange: handleChange,
-                        style: {width: '100%', padding: '8px'}
+                        style: {width: '100%', padding: '8px'},
+                        value: formData[field.name] || ''
                     })
-                ),
-                // Outros campos para gestor...
-            ] : [
-                // Campos para colaborador...
-            ],
+                )
+            ),
             React.createElement('button', {
                 type: "submit",
                 style: {padding: '10px 15px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer'}
@@ -184,13 +199,50 @@ function AddUserForm({ onAddUser, userType }) {
         )
     );
 }
+
+function UserTable({ data }) {
+    if (!data || data.length === 0) {
+        return React.createElement('p', null, 'Nenhum registro encontrado.');
+    }
+
+    const headers = Object.keys(data[0]);
+
+    return React.createElement('div', {style: {overflowX: 'auto'}},
+        React.createElement('table', {style: {width: '100%', borderCollapse: 'collapse', marginTop: '10px'}},
+            React.createElement('thead', null,
+                React.createElement('tr', null,
+                    headers.map(header => 
+                        React.createElement('th', {key: header, style: {padding: '10px', borderBottom: '1px solid #ddd', textAlign: 'left'}}, header)
+                    )
+                )
+            ),
+            React.createElement('tbody', null,
+                data.map((row, index) =>
+                    React.createElement('tr', {key: index},
+                        headers.map(header =>
+                            React.createElement('td', {key: header, style: {padding: '10px', borderBottom: '1px solid #eee'}}, row[header])
+                        )
+                    )
+                )
+            )
+        )
+    );
+}
+
 // --- INICIALIZAÇÃO ---
-document.addEventListener('DOMContentLoaded', () => {
+function inicializarAplicacao() {
     inicializarMapa();
     carregarDados();
     configurarEventListeners();
     
-});
+    // Renderiza o gerenciamento de usuários
+    ReactDOM.render(
+        React.createElement(renderUserManagement), 
+        document.getElementById('user-management-root')
+    );
+}
+
+document.addEventListener('DOMContentLoaded', inicializarAplicacao);
 
 function inicializarMapa() {
     map = L.map('map', { center: [-15.7, -47.9], zoom: 5, zoomControl: true });
@@ -205,7 +257,7 @@ async function carregarDados() {
         const response = await fetch('https://mapa-interativo-slc.onrender.com/api/dados_mapa');
         if (!response.ok) throw new Error(`Erro HTTP: ${response.status}`);
         dadosOriginais = await response.json();
-        dadosFiltrados = JSON.parse(JSON.stringify(dadosOriginais)); // Cópia profunda
+        dadosFiltrados = JSON.parse(JSON.stringify(dadosOriginais));
         processarDados();
         preencherFiltros();
     } catch (error) {
@@ -214,18 +266,16 @@ async function carregarDados() {
     } finally {
         mostrarLoading(false);
     }
-    document.addEventListener('DOMContentLoaded', () => {
-    inicializarMapa();
-    carregarDados();
-    configurarEventListeners();
-    
-    // Renderiza o gerenciamento de usuários
-    ReactDOM.render(React.createElement(renderUserManagement), 
-                  document.getElementById('user-management-root'));
-});
 }
 
-// --- PROCESSAMENTO E DESENHO ---
+// [Mantenha todas as outras funções existentes...]
+// (processarDados, agruparFazendas, desenharFazendasEIcones, desenharEspecialistas, 
+//  desenharRotas, desenharAreasAtuacao, criarIconeEspecialista, criarIconeFazenda,
+//  calcularDistancias, atualizarEstatisticas, criarLegenda, aplicarFiltros,
+//  configurarEventListeners, preencherFiltros, toggleLayer, ajustarVisualizacao,
+//  mostrarLoading)
+
+// --- Funções do Mapa (mantenha todas as existentes) ---
 async function processarDados() {
     Object.values(camadasVisiveis).forEach(layer => layer.clearLayers());
     if (!dadosFiltrados) return;
@@ -235,12 +285,10 @@ async function processarDados() {
     desenharFazendasEIcones(fazendasAgrupadas);
     desenharEspecialistas(fazendasAgrupadas);
     
-    // A função desenharRotas agora vai RETORNAR a distância total calculada
     const distanciaTotalDasRotas = await desenharRotas(fazendasAgrupadas);
 
     desenharAreasAtuacao(fazendasAgrupadas);
 
-    // Passamos o valor calculado para a função de atualizar estatísticas
     atualizarEstatisticas(fazendasAgrupadas, distanciaTotalDasRotas); 
     
     criarLegenda();
@@ -271,16 +319,12 @@ function agruparFazendas(listaDePoligonos) {
     return fazendas;
 }
 
-// ############# INÍCIO DA CORREÇÃO #############
 function desenharFazendasEIcones(fazendasAgrupadas) {
     Object.values(fazendasAgrupadas).forEach(fazenda => {
         const cor = getCorEspecialista(fazenda.especialista);
-        
-        // Encontra a informação completa do especialista de forma segura
         const especialistaInfo = dadosOriginais.especialistas.find(e => e.nome === fazenda.especialista);
         
         let distanciaFormatada = 'N/A';
-        // Calcula a distância apenas se a informação do especialista e suas coordenadas existirem
         if (especialistaInfo && especialistaInfo.latitude_base && especialistaInfo.longitude_base) {
             const pontoEspecialista = L.latLng(especialistaInfo.latitude_base, especialistaInfo.longitude_base);
             const pontoFazenda = L.latLng(fazenda.centroideGeral[0], fazenda.centroideGeral[1]);
@@ -288,12 +332,10 @@ function desenharFazendasEIcones(fazendasAgrupadas) {
             distanciaFormatada = formatarDistancia(distanciaMetros);
         }
 
-        // Desenha os polígonos da fazenda
         L.geoJSON(fazenda.poligonos, { 
             style: { fillColor: cor, weight: 1, opacity: 1, color: 'white', dashArray: '3', fillOpacity: 0.4 } 
         }).addTo(camadasVisiveis.fazendas);
 
-        // Adiciona o ícone do trator com o pop-up corrigido
         L.marker(fazenda.centroideGeral, { icon: criarIconeFazenda(cor) })
             .bindPopup(`
                 <h4>Fazenda: ${fazenda.nome}</h4>
@@ -304,8 +346,6 @@ function desenharFazendasEIcones(fazendasAgrupadas) {
             .addTo(camadasVisiveis.fazendas);
     });
 }
-// ############# FIM DA CORREÇÃO #############
-
 
 function desenharEspecialistas(fazendasAgrupadas) {
     const fazendasPorEspecialista = {};
@@ -344,7 +384,7 @@ async function desenharRotas(fazendasAgrupadas) {
         return acc;
     }, {});
 
-    let distanciaTotalAcumulada = 0; // Variável para somar as distâncias
+    let distanciaTotalAcumulada = 0;
 
     for (const fazenda of Object.values(fazendasAgrupadas)) {
         const especialistaInfo = especialistas[fazenda.especialista];
@@ -354,25 +394,22 @@ async function desenharRotas(fazendasAgrupadas) {
             const end = `${fazenda.centroideGeral[1]},${fazenda.centroideGeral[0]}`;
             
             try {
-                const response = await fetch(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson` );
+                const response = await fetch(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson`);
                 if (!response.ok) throw new Error('Falha na API de roteamento');
                 const data = await response.json();
                 if (data.routes && data.routes.length > 0) {
                     L.geoJSON(data.routes[0].geometry, { style: { color: cor, weight: 4, opacity: 0.6 } }).addTo(camadasVisiveis.rotas);
-                    // Soma a distância da rota (em metros) à nossa variável
-                    distanciaTotalAcumulada += data.routes[0].distance; 
+                    distanciaTotalAcumulada += data.routes[0].distance;
                 } else { throw new Error('Nenhuma rota encontrada'); }
             } catch (error) {
                 console.warn(`Fallback para linha reta para ${fazenda.nome}:`, error.message);
                 const p1 = L.latLng(especialistaInfo.lat, especialistaInfo.lon);
                 const p2 = L.latLng(fazenda.centroideGeral[0], fazenda.centroideGeral[1]);
                 L.polyline([p1, p2], { color: cor, weight: 2, opacity: 0.6, dashArray: '5, 5' }).addTo(camadasVisiveis.rotas);
-                // Soma a distância da linha reta também
                 distanciaTotalAcumulada += map.distance(p1, p2);
             }
         }
     }
-    // Retorna o valor final para quem a chamou
     return distanciaTotalAcumulada;
 }
 
@@ -395,13 +432,22 @@ function desenharAreasAtuacao(fazendasAgrupadas) {
     });
 }
 
-// --- ÍCONES E CÁLCULOS ---
 function criarIconeEspecialista(cor) {
-    return L.divIcon({ className: 'custom-marker', html: `<div style="background-color: ${cor}; width: 30px; height: 30px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 10px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 14px;"><i class="fas fa-user"></i></div>`, iconSize: [30, 30], iconAnchor: [15, 15] });
+    return L.divIcon({ 
+        className: 'custom-marker', 
+        html: `<div style="background-color: ${cor}; width: 30px; height: 30px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 10px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 14px;"><i class="fas fa-user"></i></div>`, 
+        iconSize: [30, 30], 
+        iconAnchor: [15, 15] 
+    });
 }
 
 function criarIconeFazenda(cor) {
-    return L.divIcon({ className: 'custom-marker', html: `<div style="font-size: 24px; color: ${cor}; text-shadow: 0 0 3px white, 0 0 3px white, 0 0 3px white, 0 0 3px white;"><i class="fas fa-tractor"></i></div>`, iconSize: [24, 24], iconAnchor: [12, 12] });
+    return L.divIcon({ 
+        className: 'custom-marker', 
+        html: `<div style="font-size: 24px; color: ${cor}; text-shadow: 0 0 3px white, 0 0 3px white, 0 0 3px white, 0 0 3px white;"><i class="fas fa-tractor"></i></div>`, 
+        iconSize: [24, 24], 
+        iconAnchor: [12, 12] 
+    });
 }
 
 function calcularDistancias(especialista, fazendas) {
@@ -415,15 +461,12 @@ function calcularDistancias(especialista, fazendas) {
     return { maxDist, avgDist };
 }
 
-// --- UI E EVENTOS ---
 function atualizarEstatisticas(fazendasAgrupadas, distanciaTotal) {
     const totalUnidades = Object.keys(fazendasAgrupadas).length;
     document.getElementById('total-unidades').textContent = totalUnidades;
     document.getElementById('total-especialistas').textContent = new Set(Object.values(fazendasAgrupadas).map(f => f.especialista)).size;
     
-    // Calcula a média usando o valor recebido
     const distanciaMedia = totalUnidades > 0 ? distanciaTotal / totalUnidades : 0;
-
     document.getElementById('distancia-media').textContent = formatarDistancia(distanciaMedia);
 }
 
@@ -482,17 +525,14 @@ function configurarEventListeners() {
     document.getElementById('show-fazendas').addEventListener('change', e => toggleLayer(camadasVisiveis.fazendas, e.target.checked));
     document.getElementById('show-rotas').addEventListener('change', e => toggleLayer(camadasVisiveis.rotas, e.target.checked));
     document.getElementById('show-areas').addEventListener('change', e => toggleLayer(camadasVisiveis.areas, e.target.checked));
+    
     document.getElementById('open-user-management').addEventListener('click', function() {
         document.getElementById('user-management-container').style.display = 'block';
-        ReactDOM.render(React.createElement(renderUserManagement), 
-                      document.getElementById('user-management-root'));
     });
 
     document.getElementById('close-user-management').addEventListener('click', function() {
         document.getElementById('user-management-container').style.display = 'none';
     });
-    
-    // ... outros event listeners ...
 }
 
 function preencherFiltros() {
