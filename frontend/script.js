@@ -231,15 +231,26 @@ function UserTable({ data }) {
 
 // --- INICIALIZAÇÃO ---
 function inicializarAplicacao() {
-    inicializarMapa();
-    carregarDados();
-    configurarEventListeners();
-    
-    // Renderiza o gerenciamento de usuários
-    ReactDOM.render(
-        React.createElement(renderUserManagement), 
-        document.getElementById('user-management-root')
-    );
+    // Verifica se os elementos essenciais existem
+    if (!document.getElementById('map') || !document.getElementById('user-management-root')) {
+        console.error('Elementos essenciais do DOM não encontrados');
+        return;
+    }
+
+    try {
+        inicializarMapa();
+        carregarDados();
+        configurarEventListeners();
+        
+        // Renderização inicial do gerenciamento de usuários
+        ReactDOM.render(
+            React.createElement(renderUserManagement),
+            document.getElementById('user-management-root')
+        );
+    } catch (error) {
+        console.error('Erro na inicialização:', error);
+        alert('Ocorreu um erro ao iniciar a aplicação. Verifique o console para detalhes.');
+    }
 }
 
 document.addEventListener('DOMContentLoaded', inicializarAplicacao);
@@ -507,31 +518,56 @@ function aplicarFiltros() {
 }
 
 function configurarEventListeners() {
-    document.getElementById('gestor-filter').addEventListener('change', aplicarFiltros);
-    document.getElementById('especialista-filter').addEventListener('change', aplicarFiltros);
-    document.getElementById('resetar-filtros').addEventListener('click', () => {
+    // Verifica se os elementos existem antes de adicionar listeners
+    const addListener = (id, event, handler) => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.addEventListener(event, handler);
+        } else {
+            console.error(`Elemento com ID ${id} não encontrado`);
+        }
+    };
+
+    // Filtros principais
+    addListener('gestor-filter', 'change', aplicarFiltros);
+    addListener('especialista-filter', 'change', aplicarFiltros);
+    addListener('resetar-filtros', 'click', () => {
         document.getElementById('gestor-filter').value = '';
         document.getElementById('especialista-filter').value = '';
         dadosFiltrados = JSON.parse(JSON.stringify(dadosOriginais));
         processarDados();
     });
-    
-    document.querySelectorAll('input[name="base-layer"]').forEach(radio => radio.addEventListener('change', function() {
-        Object.values(camadasBase).forEach(camada => map.removeLayer(camada));
-        camadasBase[this.value].addTo(map);
-    }));
-    
-    document.getElementById('show-colaboradores').addEventListener('change', e => toggleLayer(camadasVisiveis.especialistas, e.target.checked));
-    document.getElementById('show-fazendas').addEventListener('change', e => toggleLayer(camadasVisiveis.fazendas, e.target.checked));
-    document.getElementById('show-rotas').addEventListener('change', e => toggleLayer(camadasVisiveis.rotas, e.target.checked));
-    document.getElementById('show-areas').addEventListener('change', e => toggleLayer(camadasVisiveis.areas, e.target.checked));
-    
-    document.getElementById('open-user-management').addEventListener('click', function() {
-        document.getElementById('user-management-container').style.display = 'block';
+
+    // Camadas base
+    document.querySelectorAll('input[name="base-layer"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            Object.values(camadasBase).forEach(camada => map.removeLayer(camada));
+            camadasBase[this.value].addTo(map);
+        });
     });
 
-    document.getElementById('close-user-management').addEventListener('click', function() {
-        document.getElementById('user-management-container').style.display = 'none';
+    // Controles de camadas
+    addListener('show-colaboradores', 'change', e => toggleLayer(camadasVisiveis.especialistas, e.target.checked));
+    addListener('show-fazendas', 'change', e => toggleLayer(camadasVisiveis.fazendas, e.target.checked));
+    addListener('show-rotas', 'change', e => toggleLayer(camadasVisiveis.rotas, e.target.checked));
+    addListener('show-areas', 'change', e => toggleLayer(camadasVisiveis.areas, e.target.checked));
+
+    // Gerenciamento de usuários
+    addListener('open-user-management', 'click', function() {
+        const container = document.getElementById('user-management-container');
+        if (container) {
+            container.style.display = 'block';
+            // Força nova renderização ao abrir
+            ReactDOM.render(
+                React.createElement(renderUserManagement),
+                document.getElementById('user-management-root')
+            );
+        }
+    });
+
+    addListener('close-user-management', 'click', function() {
+        const container = document.getElementById('user-management-container');
+        if (container) container.style.display = 'none';
     });
 }
 
