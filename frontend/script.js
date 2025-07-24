@@ -8,7 +8,55 @@ let camadasVisiveis = {
     rotas: L.layerGroup(),
     areas: L.layerGroup()
 };
+const UserService = {
+    getGestores: async () => {
+        try {
+            const response = await fetch('SUA_URL_DA_API?action=getGestores');
+            return await response.json();
+        } catch (error) {
+            console.error('Erro ao buscar gestores:', error);
+            return [];
+        }
+    },
 
+    getColaboradores: async () => {
+        try {
+            const response = await fetch('SUA_URL_DA_API?action=getColaboradores');
+            return await response.json();
+        } catch (error) {
+            console.error('Erro ao buscar colaboradores:', error);
+            return [];
+        }
+    },
+
+    addGestor: async (gestorData) => {
+        try {
+            const response = await fetch('SUA_URL_DA_API?action=addGestor', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(gestorData)
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Erro ao adicionar gestor:', error);
+            return {status: 'error', message: 'Falha ao adicionar gestor'};
+        }
+    },
+
+    addColaborador: async (colabData) => {
+        try {
+            const response = await fetch('SUA_URL_DA_API?action=addColaborador', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(colabData)
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Erro ao adicionar colaborador:', error);
+            return {status: 'error', message: 'Falha ao adicionar colaborador'};
+        }
+    }
+};
 // Cores para cada especialista
 const coresEspecialistas = {
     'IGOR.DIAS': '#0ccf26ff', 'GIOVANI.CATAPAN': '#27ae60', 'ALYNE.SOUZA': '#3498db',
@@ -37,12 +85,111 @@ function formatarDistancia(distanciaEmMetros) {
     if (isNaN(distanciaEmMetros)) return 'N/A';
     return (distanciaEmMetros / 1000).toFixed(1) + ' km';
 }
+// --- GERENCIAMENTO DE USUÁRIOS ---
+function renderUserManagement() {
+    const container = document.getElementById('user-management-root');
+    
+    const [gestores, setGestores] = React.useState([]);
+    const [colaboradores, setColaboradores] = React.useState([]);
+    const [loading, setLoading] = React.useState(true);
 
+    const loadUsers = async () => {
+        try {
+            const [gestoresData, colaboradoresData] = await Promise.all([
+                UserService.getGestores(),
+                UserService.getColaboradores()
+            ]);
+            
+            setGestores(gestoresData);
+            setColaboradores(colaboradoresData);
+        } catch (error) {
+            console.error('Erro ao carregar dados:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    React.useEffect(() => { loadUsers(); }, []);
+
+    const handleAddGestor = async (gestorData) => {
+        await UserService.addGestor(gestorData);
+        loadUsers();
+    };
+
+    const handleAddColaborador = async (colabData) => {
+        await UserService.addColaborador(colabData);
+        loadUsers();
+    };
+
+    if (loading) return React.createElement('div', null, 'Carregando...');
+
+    return React.createElement('div', {style: {padding: '20px'}},
+        React.createElement('h1', null, 'Gerenciamento de Usuários'),
+        
+        React.createElement('div', {style: {marginBottom: '40px'}},
+            React.createElement('h2', null, 'Adicionar Novo Gestor'),
+            React.createElement(AddUserForm, { 
+                onAddUser: handleAddGestor,
+                userType: "gestor" 
+            })
+        ),
+        
+        React.createElement('div', {style: {marginBottom: '40px'}},
+            React.createElement('h2', null, 'Adicionar Novo Colaborador'),
+            React.createElement(AddUserForm, { 
+                onAddUser: handleAddColaborador,
+                userType: "colaborador" 
+            })
+        ),
+        
+        // Lista de gestores e colaboradores...
+    );
+}
+
+function AddUserForm({ onAddUser, userType }) {
+    const [formData, setFormData] = React.useState({});
+
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        onAddUser(formData);
+        setFormData({});
+    };
+
+    return React.createElement('div', {style: {border: '1px solid #ccc', padding: '20px', marginBottom: '20px', borderRadius: '5px'}},
+        React.createElement('form', {onSubmit: handleSubmit},
+            userType === 'gestor' ? [
+                React.createElement('div', {style: {marginBottom: '10px'}},
+                    React.createElement('label', {style: {display: 'block', marginBottom: '5px'}}, 'Nome:'),
+                    React.createElement('input', {
+                        type: "text",
+                        name: "Nome",
+                        required: true,
+                        onChange: handleChange,
+                        style: {width: '100%', padding: '8px'}
+                    })
+                ),
+                // Outros campos para gestor...
+            ] : [
+                // Campos para colaborador...
+            ],
+            React.createElement('button', {
+                type: "submit",
+                style: {padding: '10px 15px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer'}
+            }, `Adicionar ${userType === 'gestor' ? 'Gestor' : 'Colaborador'}`)
+        )
+    );
+}
 // --- INICIALIZAÇÃO ---
 document.addEventListener('DOMContentLoaded', () => {
     inicializarMapa();
     carregarDados();
     configurarEventListeners();
+    
 });
 
 function inicializarMapa() {
@@ -67,6 +214,15 @@ async function carregarDados() {
     } finally {
         mostrarLoading(false);
     }
+    document.addEventListener('DOMContentLoaded', () => {
+    inicializarMapa();
+    carregarDados();
+    configurarEventListeners();
+    
+    // Renderiza o gerenciamento de usuários
+    ReactDOM.render(React.createElement(renderUserManagement), 
+                  document.getElementById('user-management-root'));
+});
 }
 
 // --- PROCESSAMENTO E DESENHO ---
@@ -326,6 +482,15 @@ function configurarEventListeners() {
     document.getElementById('show-fazendas').addEventListener('change', e => toggleLayer(camadasVisiveis.fazendas, e.target.checked));
     document.getElementById('show-rotas').addEventListener('change', e => toggleLayer(camadasVisiveis.rotas, e.target.checked));
     document.getElementById('show-areas').addEventListener('change', e => toggleLayer(camadasVisiveis.areas, e.target.checked));
+    document.getElementById('open-user-management').addEventListener('click', function() {
+        document.getElementById('user-management-container').style.display = 'block';
+        ReactDOM.render(React.createElement(renderUserManagement), 
+                      document.getElementById('user-management-root'));
+    });
+
+    document.getElementById('close-user-management').addEventListener('click', function() {
+        document.getElementById('user-management-container').style.display = 'none';
+    });
     
     // ... outros event listeners ...
 }
