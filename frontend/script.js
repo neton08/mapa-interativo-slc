@@ -55,7 +55,7 @@ function inicializarMapa() {
 async function carregarDados() {
     mostrarLoading(true);
     try {
-        const response = await fetch('https://github.com/neton08/mapa-interativo-slc');
+        const response = await fetch('https://mapa-interativo-slc.onrender.com/api/dados_mapa');
         if (!response.ok) throw new Error(`Erro HTTP: ${response.status}`);
         dadosOriginais = await response.json();
         dadosFiltrados = JSON.parse(JSON.stringify(dadosOriginais)); // Cópia profunda
