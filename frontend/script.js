@@ -88,7 +88,7 @@ function formatarDistancia(distanciaEmMetros) {
 }
 
 // --- GERENCIAMENTO DE USUÁRIOS ---
-function renderUserManagement() {
+function UserManagement() {
     const [gestores, setGestores] = React.useState([]);
     const [colaboradores, setColaboradores] = React.useState([]);
     const [loading, setLoading] = React.useState(true);
@@ -246,7 +246,7 @@ function inicializarAplicacao() {
     if (elementosFaltantes.length > 0) {
         console.error('Elementos do DOM não encontrados:', elementosFaltantes);
         
-        // Mostra mensagem amigável (opcional)
+        // Mostra mensagem amigável
         const mensagem = document.createElement('div');
         mensagem.style.cssText = `
             position: fixed;
@@ -274,7 +274,7 @@ function inicializarAplicacao() {
         
         // Renderização inicial do React
         ReactDOM.render(
-            React.createElement(renderUserManagement),
+            React.createElement(UserManagement),
             document.getElementById('user-management-root')
         );
         
@@ -311,15 +311,7 @@ async function carregarDados() {
     }
 }
 
-// [Mantenha todas as outras funções existentes...]
-// (processarDados, agruparFazendas, desenharFazendasEIcones, desenharEspecialistas, 
-//  desenharRotas, desenharAreasAtuacao, criarIconeEspecialista, criarIconeFazenda,
-//  calcularDistancias, atualizarEstatisticas, criarLegenda, aplicarFiltros,
-//  configurarEventListeners, preencherFiltros, toggleLayer, ajustarVisualizacao,
-//  mostrarLoading)
-
-// --- Funções do Mapa (mantenha todas as existentes) ---
-async function processarDados() {
+function processarDados() {
     Object.values(camadasVisiveis).forEach(layer => layer.clearLayers());
     if (!dadosFiltrados) return;
 
@@ -328,11 +320,10 @@ async function processarDados() {
     desenharFazendasEIcones(fazendasAgrupadas);
     desenharEspecialistas(fazendasAgrupadas);
     
-    const distanciaTotalDasRotas = await desenharRotas(fazendasAgrupadas);
-
-    desenharAreasAtuacao(fazendasAgrupadas);
-
-    atualizarEstatisticas(fazendasAgrupadas, distanciaTotalDasRotas); 
+    desenharRotas(fazendasAgrupadas).then(distanciaTotalDasRotas => {
+        desenharAreasAtuacao(fazendasAgrupadas);
+        atualizarEstatisticas(fazendasAgrupadas, distanciaTotalDasRotas); 
+    });
     
     criarLegenda();
     ajustarVisualizacao(fazendasAgrupadas);
@@ -515,6 +506,8 @@ function atualizarEstatisticas(fazendasAgrupadas, distanciaTotal) {
 
 function criarLegenda() {
     const legendaContent = document.getElementById('legend-content');
+    if (!legendaContent) return;
+    
     legendaContent.innerHTML = '';
     const contadores = {};
     const especialistasNosDados = new Set(dadosFiltrados.fazendas.map(f => f.especialista));
@@ -591,7 +584,7 @@ function configurarEventListeners() {
             container.style.display = 'block';
             // Força nova renderização ao abrir
             ReactDOM.render(
-                React.createElement(renderUserManagement),
+                React.createElement(UserManagement),
                 document.getElementById('user-management-root')
             );
         }
@@ -607,6 +600,8 @@ function preencherFiltros() {
     if (!dadosOriginais) return;
     const gestorSelect = document.getElementById('gestor-filter');
     const especialistaSelect = document.getElementById('especialista-filter');
+    if (!gestorSelect || !especialistaSelect) return;
+    
     gestorSelect.innerHTML = '<option value="">Todos</option>';
     especialistaSelect.innerHTML = '<option value="">Todos</option>';
     [...new Set(dadosOriginais.especialistas.map(e => e.gestor))].filter(Boolean).sort().forEach(g => gestorSelect.add(new Option(g, g)));
@@ -629,5 +624,8 @@ function ajustarVisualizacao(fazendasAgrupadas) {
 }
 
 function mostrarLoading(mostrar) {
-    document.getElementById('loading-overlay').classList.toggle('hidden', !mostrar);
+    const loadingElement = document.getElementById('loading-overlay');
+    if (loadingElement) {
+        loadingElement.classList.toggle('hidden', !mostrar);
+    }
 }
