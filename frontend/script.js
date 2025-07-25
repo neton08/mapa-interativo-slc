@@ -1,38 +1,34 @@
 const APIService = {
-    // COLE A URL QUE VOCÊ COPIOU DO JSONBIN.IO AQUI
+    // COLE A URL DO SEU BIN AQUI (a que começa com https://api.jsonbin.io/v3/b/... )
     url: 'https://api.jsonbin.io/v3/b/68839a4dae596e708fbba21b',
+
+    // COLE A SUA CHAVE 'X-Master-Key' QUE VOCÊ ACABOU DE COPIAR AQUI
+    apiKey: '$2a$10$lJrU.ksPYpWjbNsxB50zk.IDDDTG8nHxxBgBj0DsiFpGT/tWyQmlW',
 
     fetchData: async () => {
         try {
-            // O JSONBin requer um cabeçalho para ler o bin mais recente
             const response = await fetch(this.url, {
                 headers: {
-                    'X-Master-Key': '$2a$10$Z.' // Chave pública de leitura do JSONBin
+                    // Usa a sua chave de API pessoal para ter permissão de leitura
+                    'X-Master-Key': this.apiKey
                 }
             });
-            if (!response.ok) throw new Error(`Erro na resposta do JSONBin: ${response.statusText}`);
+            if (!response.ok) {
+                // O erro 404 vai cair aqui, nos dando uma mensagem clara.
+                throw new Error(`Erro ${response.status}: ${response.statusText}`);
+            }
             const data = await response.json();
             // A resposta do JSONBin vem dentro de um objeto 'record'
             return data.record;
         } catch (error) {
             console.error("Falha crítica ao buscar dados do JSONBin:", error);
-            alert("Não foi possível carregar os dados do mapa. Verifique o console.");
+            alert(`Não foi possível carregar os dados do mapa: ${error.message}. Verifique a URL do Bin e a Chave de API no script.js.`);
             return [];
         }
     },
     postData: async (data) => {
-        try {
-            // Para POST, 'no-cors' é a abordagem mais estável com Google Apps Script.
-            await fetch(GOOGLE_SCRIPT_URL, {
-                method: 'POST',
-                mode: 'no-cors',
-                body: JSON.stringify(data)
-            });
-            return { status: 'success' };
-        } catch (error) {
-            console.error('Erro ao enviar dados:', error);
-            return { status: 'error' };
-        }
+        alert('A função de adicionar usuário está desabilitada. Para adicionar, edite a planilha e cole os novos dados no JSONBin.io.');
+        return { status: 'info' };
     }
 };
 
