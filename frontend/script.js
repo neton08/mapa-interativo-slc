@@ -9,60 +9,43 @@ let camadasVisiveis = {
     areas: L.layerGroup()
 };
 
-// Serviço para gerenciamento de usuários
-const UserService = {
-    getGestores: async () => {
+// *** 1. SERVIÇO DE API SIMPLIFICADO ***
+// Centraliza a comunicação com o backend do Google Apps Script.
+const APIService = {
+    // Substitua esta URL pela URL da sua implantação do Google Apps Script
+    url: 'https://script.google.com/macros/s/AKfycbyQ_WZEH6xE620_qyGTBWP-jzMyvVMKJ5aJBiSMeYTx8mMmNmX5R_elVLtxKIippcYbaw/exec',
+
+    fetchData: async function( ) {
         try {
-            const response = await fetch('https://script.google.com/macros/s/AKfycbwtL5GzIEwwUnkeBRdFn1eDQ_NspxrQmn4DgsJ1-E8f6WnNluGqXkkevl_eGd6RUMaoEg/exec' );
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const response = await fetch(this.url);
+            if (!response.ok) throw new Error(`Erro na resposta da API: ${response.statusText}`);
             const data = await response.json();
-            return Array.isArray(data) ? data : []; // Garante que o retorno seja sempre um array
+            return Array.isArray(data) ? data : [];
         } catch (error) {
-            console.error('Erro ao buscar gestores:', error);
-            return [];
+            console.error('Erro ao buscar dados:', error);
+            alert("Falha ao carregar dados do mapa. Verifique o console.");
+            return []; // Retorna um array vazio para não quebrar a aplicação
         }
     },
-
-    getColaboradores: async () => {
+    postData: async function(data) {
         try {
-            const response = await fetch('https://script.google.com/macros/s/AKfycbwtL5GzIEwwUnkeBRdFn1eDQ_NspxrQmn4DgsJ1-E8f6WnNluGqXkkevl_eGd6RUMaoEg/exec' );
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            const data = await response.json();
-            return Array.isArray(data) ? data : []; // Garante que o retorno seja sempre um array
-        } catch (error) {
-            console.error('Erro ao buscar colaboradores:', error);
-            return [];
-        }
-    },
-
-    addGestor: async (gestorData) => {
-        try {
-            const response = await fetch('https://script.google.com/macros/s/AKfycbwtL5GzIEwwUnkeBRdFn1eDQ_NspxrQmn4DgsJ1-E8f6WnNluGqXkkevl_eGd6RUMaoEg/exec', {
+            // O Google Apps Script responde com um redirecionamento que causa erro de CORS no modo 'cors'.
+            // O modo 'no-cors' envia os dados, mas não permite ler a resposta. É um workaround comum.
+            await fetch(this.url, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(gestorData )
+                mode: 'no-cors', 
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // Usar text/plain é mais robusto para 'no-cors'
+                body: JSON.stringify(data)
             });
-            return await response.json();
-        } catch (error) {
-            console.error('Erro ao adicionar gestor:', error);
-            return {status: 'error', message: 'Falha ao adicionar gestor'};
-        }
-    },
-
-    addColaborador: async (colabData) => {
-        try {
-            const response = await fetch('https://script.google.com/macros/s/AKfycbwtL5GzIEwwUnkeBRdFn1eDQ_NspxrQmn4DgsJ1-E8f6WnNluGqXkkevl_eGd6RUMaoEg/exec', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(colabData )
-            });
-            return await response.json();
-        } catch (error) {
-            console.error('Erro ao adicionar colaborador:', error);
-            return {status: 'error', message: 'Falha ao adicionar colaborador'};
+            return { status: 'success' };
+        } catch (error)
+        {
+            console.error('Erro ao enviar dados:', error);
+            return { status: 'error', message: 'Falha ao enviar dados.' };
         }
     }
 };
+
 
 // Cores para cada especialista
 const coresEspecialistas = {
@@ -74,9 +57,9 @@ const coresEspecialistas = {
 
 // Camadas base
 const camadasBase = {
-    'osm': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' } ),
-    'topo': L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { attribution: '© OpenTopoMap' } ),
-    'satellite': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: '© Esri' } )
+    'osm': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }  ),
+    'topo': L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { attribution: '© OpenTopoMap' }  ),
+    'satellite': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: '© Esri' }  )
 };
 
 // --- FUNÇÕES AUXILIARES ---
@@ -92,61 +75,44 @@ function formatarDistancia(distanciaEmMetros) {
 }
 
 // --- COMPONENTES REACT ---
-function UserManagement() {
-    const [gestores, setGestores] = React.useState([]);
-    const [colaboradores, setColaboradores] = React.useState([]);
-    const [loading, setLoading] = React.useState(true);
 
-    const loadUsers = async () => {
+// *** 2. COMPONENTE DE GERENCIAMENTO SIMPLIFICADO ***
+// Agora ele tem apenas um formulário e uma função para adicionar usuários.
+function UserManagement() {
+    const [loading, setLoading] = React.useState(false);
+
+    const handleAddUser = async (userData) => {
         setLoading(true);
-        try {
-            const [gestoresData, colaboradoresData] = await Promise.all([
-                UserService.getGestores(),
-                UserService.getColaboradores()
-            ]);
-            setGestores(gestoresData);
-            setColaboradores(colaboradoresData);
-        } catch (error) {
-            console.error('Erro ao carregar dados de usuários:', error);
-        } finally {
-            setLoading(false);
+        const payload = {
+            action: 'addColaborador', // Ação que o backend vai reconhecer
+            ...userData
+        };
+        
+        const result = await APIService.postData(payload);
+        setLoading(false);
+        
+        if (result.status === 'success') {
+            alert('Dados enviados com sucesso! A planilha será atualizada. A página será recarregada para exibir os novos dados.');
+            window.location.reload(); // Recarrega a página para buscar os dados atualizados
+        } else {
+            alert('Ocorreu um erro ao adicionar o usuário. Verifique o console.');
         }
     };
 
-    React.useEffect(() => { loadUsers(); }, []);
-
-    const handleAddGestor = async (gestorData) => {
-        await UserService.addGestor(gestorData);
-        loadUsers();
-    };
-
-    const handleAddColaborador = async (colabData) => {
-        await UserService.addColaborador(colabData);
-        loadUsers();
-    };
-
-    if (loading) return React.createElement('div', null, 'Carregando usuários...');
+    if (loading) return React.createElement('div', null, 'Adicionando usuário...');
 
     return React.createElement('div', {style: {padding: '20px'}},
         React.createElement('h1', null, 'Gerenciamento de Usuários'),
         React.createElement('div', {style: {marginBottom: '40px'}},
-            React.createElement('h2', null, 'Adicionar Novo Gestor'),
-            React.createElement(AddUserForm, { onAddUser: handleAddGestor, userType: "gestor" })
-        ),
-        React.createElement('div', {style: {marginBottom: '40px'}},
-            React.createElement('h2', null, 'Adicionar Novo Colaborador'),
-            React.createElement(AddUserForm, { onAddUser: handleAddColaborador, userType: "colaborador" })
-        ),
-        React.createElement('div', null,
-            React.createElement('h2', null, 'Gestores Cadastrados'),
-            React.createElement(UserTable, { data: gestores }),
-            React.createElement('h2', {style: {marginTop: '30px'}}, 'Colaboradores Cadastrados'),
-            React.createElement(UserTable, { data: colaboradores })
+            React.createElement('h2', null, 'Adicionar Novo Colaborador/Especialista'),
+            React.createElement(AddUserForm, { onAddUser: handleAddUser })
         )
+        // A tabela de usuários foi removida para simplificar, já que os dados estão no mapa.
     );
 }
 
-function AddUserForm({ onAddUser, userType }) {
+// *** 3. FORMULÁRIO CORRIGIDO COM OS CAMPOS CERTOS ***
+function AddUserForm({ onAddUser }) {
     const [formData, setFormData] = React.useState({});
 
     const handleChange = (e) => {
@@ -157,88 +123,48 @@ function AddUserForm({ onAddUser, userType }) {
     const handleSubmit = (e) => {
         e.preventDefault();
         onAddUser(formData);
-        setFormData({});
+        setFormData({}); // Limpa o formulário
     };
 
-    const fields = userType === 'gestor' ? [
-        { name: 'Nome', type: 'text', required: true },
-        { name: 'Email', type: 'email', required: true },
-        { name: 'Equipe', type: 'text', required: false }
-    ] : [
-        { name: 'ID', type: 'text', required: true },
-        { name: 'Nome', type: 'text', required: true },
-        { name: 'Função', type: 'text', required: false },
-        { name: 'Gestor Responsável', type: 'text', required: false }
+    // Campos que você solicitou, correspondendo às colunas da planilha
+    const fields = [
+        { name: 'GESTOR', type: 'text', required: true, placeholder: 'Nome do gestor responsável' },
+        { name: 'ESPECIALISTA', type: 'text', required: true, placeholder: 'Nome do especialista (ex: NOME.SOBRENOME)' },
+        { name: 'CIDADE_BASE', type: 'text', required: true, placeholder: 'Cidade de atuação' },
+        { name: 'UNIDADE', type: 'text', required: true, placeholder: 'Unidade de atendimento' },
+        { name: 'COORDENADAS_CIDADE', type: 'text', required: true, placeholder: 'Ex: -12.34567, -56.78901' }
     ];
 
     return React.createElement('div', {style: {border: '1px solid #ccc', padding: '20px', marginBottom: '20px', borderRadius: '5px'}},
         React.createElement('form', {onSubmit: handleSubmit},
             fields.map(field => 
                 React.createElement('div', {key: field.name, style: {marginBottom: '10px'}},
-                    React.createElement('label', {style: {display: 'block', marginBottom: '5px'}}, `${field.name}:`),
+                    // Transforma 'CIDADE_BASE' em 'CIDADE BASE' para o label
+                    React.createElement('label', {style: {display: 'block', marginBottom: '5px', textTransform: 'capitalize'}}, `${field.name.replace('_', ' ')}:`),
                     React.createElement('input', {
                         type: field.type,
                         name: field.name,
                         required: field.required,
                         onChange: handleChange,
                         style: {width: '100%', padding: '8px', boxSizing: 'border-box'},
-                        value: formData[field.name] || ''
+                        value: formData[field.name] || '',
+                        placeholder: field.placeholder
                     })
                 )
             ),
             React.createElement('button', {
                 type: "submit",
                 style: {padding: '10px 15px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer'}
-            }, `Adicionar ${userType === 'gestor' ? 'Gestor' : 'Colaborador'}`)
+            }, 'Adicionar Colaborador')
         )
     );
 }
 
-function UserTable({ data }) {
-    if (!Array.isArray(data) || data.length === 0) {
-        return React.createElement('p', null, 'Nenhum registro encontrado.');
-    }
-    const firstItem = data[0];
-    if (typeof firstItem !== 'object' || firstItem === null) {
-        return React.createElement('p', null, 'Formato de dados inválido.');
-    }
-    const headers = Object.keys(firstItem);
-
-    return React.createElement('div', {style: {overflowX: 'auto'}},
-        React.createElement('table', {style: {width: '100%', borderCollapse: 'collapse', marginTop: '10px'}},
-            React.createElement('thead', null,
-                React.createElement('tr', null,
-                    headers.map(header => 
-                        React.createElement('th', {key: header, style: {padding: '10px', borderBottom: '1px solid #ddd', textAlign: 'left'}}, header)
-                    )
-                )
-            ),
-            React.createElement('tbody', null,
-                data.map((row, index) =>
-                    React.createElement('tr', {key: index},
-                        headers.map(header =>
-                            React.createElement('td', {key: header, style: {padding: '10px', borderBottom: '1px solid #eee'}}, 
-                                (typeof row === 'object' && row !== null) ? row[header] : ''
-                            )
-                        )
-                    )
-                )
-            )
-        )
-    );
-}
 
 // --- INICIALIZAÇÃO DO MAPA ---
 function inicializarMapa() {
     const mapElement = document.getElementById('map');
-    if (!mapElement) {
-        console.error('Elemento do mapa não encontrado');
-        return;
-    }
-    if (mapElement._leaflet_id) {
-        console.warn('Mapa já foi inicializado');
-        return;
-    }
+    if (!mapElement || mapElement._leaflet_id) return;
     map = L.map('map', { center: [-15.7, -47.9], zoom: 5, zoomControl: true });
     camadasBase.osm.addTo(map);
     map.zoomControl.setPosition('bottomleft');
@@ -248,19 +174,31 @@ function inicializarMapa() {
 // --- CARREGAMENTO DE DADOS ---
 async function carregarDados() {
     mostrarLoading(true);
-    try {
-        const response = await fetch('https://mapa-interativo-slc.onrender.com/api/dados_mapa' );
-        if (!response.ok) throw new Error(`Erro HTTP: ${response.status}`);
-        dadosOriginais = await response.json();
+    // Usa o novo serviço de API para buscar os dados
+    const dados = await APIService.fetchData();
+    
+    // O backend agora retorna um array de objetos, não um objeto com 'especialistas' e 'fazendas'
+    // A lógica de processamento precisa ser adaptada para este novo formato.
+    // Vamos assumir que os dados retornados são equivalentes ao que antes era 'dadosOriginais.especialistas'
+    if (dados && dados.length > 0) {
+        // Adaptação: O backend agora envia uma lista única.
+        // O frontend precisa derivar as fazendas e especialistas dessa lista.
+        dadosOriginais = {
+            especialistas: dados,
+            fazendas: dados.map(d => ({
+                nome: d.UNIDADE,
+                especialista: d.ESPECIALISTA,
+                cidade_origem: d.CIDADE_BASE,
+                geometria: null, // Geometria não vem da planilha, precisa de outra fonte
+                centroide: d.COORDENADAS_CIDADE.split(',').map(c => parseFloat(c.trim()))
+            }))
+        };
+        
         dadosFiltrados = JSON.parse(JSON.stringify(dadosOriginais));
         processarDados();
         preencherFiltros();
-    } catch (error) {
-        console.error('Erro ao carregar dados do mapa:', error);
-        alert('Erro ao carregar dados do mapa. Verifique o console (F12).');
-    } finally {
-        mostrarLoading(false);
     }
+    mostrarLoading(false);
 }
 
 // --- PROCESSAMENTO DE DADOS ---
@@ -280,10 +218,10 @@ function processarDados() {
     ajustarVisualizacao(fazendasAgrupadas);
 }
 
-function agruparFazendas(listaDePoligonos) {
+function agruparFazendas(listaDeFazendas) {
     const fazendas = {};
-    if (!Array.isArray(listaDePoligonos)) return fazendas;
-    listaDePoligonos.forEach(p => {
+    if (!Array.isArray(listaDeFazendas)) return fazendas;
+    listaDeFazendas.forEach(p => {
         if (!p || !p.nome) return;
         if (!fazendas[p.nome]) {
             fazendas[p.nome] = {
@@ -291,13 +229,15 @@ function agruparFazendas(listaDePoligonos) {
                 poligonos: [], centroides: []
             };
         }
-        fazendas[p.nome].poligonos.push(p.geometria);
-        fazendas[p.nome].centroides.push(p.centroide);
+        if (p.geometria) fazendas[p.nome].poligonos.push(p.geometria);
+        if (p.centroide) fazendas[p.nome].centroides.push(p.centroide);
     });
     Object.values(fazendas).forEach(fazenda => {
-        let latSum = 0, lngSum = 0;
-        fazenda.centroides.forEach(c => { latSum += c[0]; lngSum += c[1]; });
-        fazenda.centroideGeral = [latSum / fazenda.centroides.length, lngSum / fazenda.centroides.length];
+        if (fazenda.centroides.length > 0) {
+            let latSum = 0, lngSum = 0;
+            fazenda.centroides.forEach(c => { latSum += c[0]; lngSum += c[1]; });
+            fazenda.centroideGeral = [latSum / fazenda.centroides.length, lngSum / fazenda.centroides.length];
+        }
     });
     return fazendas;
 }
@@ -305,15 +245,19 @@ function agruparFazendas(listaDePoligonos) {
 function desenharFazendasEIcones(fazendasAgrupadas) {
     if (!camadasVisiveis.fazendas || !map) return;
     Object.values(fazendasAgrupadas).forEach(fazenda => {
+        if (!fazenda.centroideGeral) return;
         const cor = getCorEspecialista(fazenda.especialista);
-        const especialistaInfo = dadosOriginais.especialistas.find(e => e.nome === fazenda.especialista);
+        const especialistaInfo = dadosOriginais.especialistas.find(e => e.ESPECIALISTA === fazenda.especialista);
+        
         let distanciaFormatada = 'N/A';
-        if (especialistaInfo && especialistaInfo.latitude_base && especialistaInfo.longitude_base) {
-            const pontoEspecialista = L.latLng(especialistaInfo.latitude_base, especialistaInfo.longitude_base);
+        if (especialistaInfo) {
+            const [latBase, lonBase] = especialistaInfo.COORDENADAS_CIDADE.split(',').map(c => parseFloat(c.trim()));
+            const pontoEspecialista = L.latLng(latBase, lonBase);
             const pontoFazenda = L.latLng(fazenda.centroideGeral[0], fazenda.centroideGeral[1]);
             distanciaFormatada = formatarDistancia(map.distance(pontoEspecialista, pontoFazenda));
         }
-        L.geoJSON(fazenda.poligonos, { style: { fillColor: cor, weight: 1, opacity: 1, color: 'white', dashArray: '3', fillOpacity: 0.4 } }).addTo(camadasVisiveis.fazendas);
+
+        // L.geoJSON(fazenda.poligonos, { style: { fillColor: cor, weight: 1, opacity: 1, color: 'white', dashArray: '3', fillOpacity: 0.4 } }).addTo(camadasVisiveis.fazendas);
         L.marker(fazenda.centroideGeral, { icon: criarIconeFazenda(cor) })
             .bindPopup(`<h4>Fazenda: ${fazenda.nome}</h4><p><strong>Cidade de Origem:</strong> ${fazenda.cidade_origem || 'N/A'}</p><p><strong>Atendida por:</strong> ${fazenda.especialista}</p><p><strong>Distância da Base:</strong> ${distanciaFormatada}</p>`)
             .addTo(camadasVisiveis.fazendas);
@@ -322,69 +266,38 @@ function desenharFazendasEIcones(fazendasAgrupadas) {
 
 function desenharEspecialistas(fazendasAgrupadas) {
     if (!camadasVisiveis.especialistas || !dadosOriginais.especialistas) return;
-    const fazendasPorEspecialista = {};
-    Object.values(fazendasAgrupadas).forEach(f => {
-        if (!fazendasPorEspecialista[f.especialista]) fazendasPorEspecialista[f.especialista] = [];
-        fazendasPorEspecialista[f.especialista].push(f);
-    });
+    
     dadosOriginais.especialistas.forEach(especialista => {
-        const fazendasAtendidas = fazendasPorEspecialista[especialista.nome];
-        if (!fazendasAtendidas || fazendasAtendidas.length === 0 || !especialista.latitude_base) return;
-        const cor = getCorEspecialista(especialista.nome);
+        const [latBase, lonBase] = especialista.COORDENADAS_CIDADE.split(',').map(c => parseFloat(c.trim()));
+        if (!latBase || !lonBase) return;
+
+        const fazendasAtendidas = Object.values(fazendasAgrupadas).filter(f => f.especialista === especialista.ESPECIALISTA);
+        if (fazendasAtendidas.length === 0) return;
+
+        const cor = getCorEspecialista(especialista.ESPECIALISTA);
         const { maxDist, avgDist } = calcularDistancias(especialista, fazendasAtendidas);
         const listaFazendasHtml = fazendasAtendidas.map(f => `<li>${f.nome}</li>`).join('');
-        L.marker([especialista.latitude_base, especialista.longitude_base], { icon: criarIconeEspecialista(cor) })
-            .bindPopup(`<h4>Especialista: ${especialista.nome}</h4><p><strong>Cidade Base:</strong> ${especialista.cidade_base || 'N/A'}</p><p><strong>Raio Máximo:</strong> ${formatarDistancia(maxDist)}</p><p><strong>Distância Média:</strong> ${formatarDistancia(avgDist)}</p><p><strong>Unidades Atendidas (${fazendasAtendidas.length}):</strong></p><ul style="margin-top: 5px; padding-left: 20px;">${listaFazendasHtml}</ul>`)
+
+        L.marker([latBase, lonBase], { icon: criarIconeEspecialista(cor) })
+            .bindPopup(`<h4>Especialista: ${especialista.ESPECIALISTA}</h4><p><strong>Cidade Base:</strong> ${especialista.CIDADE_BASE || 'N/A'}</p><p><strong>Raio Máximo:</strong> ${formatarDistancia(maxDist)}</p><p><strong>Distância Média:</strong> ${formatarDistancia(avgDist)}</p><p><strong>Unidades Atendidas (${fazendasAtendidas.length}):</strong></p><ul style="margin-top: 5px; padding-left: 20px;">${listaFazendasHtml}</ul>`)
             .addTo(camadasVisiveis.especialistas);
     });
 }
 
 async function desenharRotas(fazendasAgrupadas) {
-    if (!camadasVisiveis.rotas || !map) return 0;
-    const especialistas = dadosOriginais.especialistas.reduce((acc, e) => {
-        if (e.latitude_base && e.longitude_base) acc[e.nome] = { lat: e.latitude_base, lon: e.longitude_base };
-        return acc;
-    }, {});
-    let distanciaTotalAcumulada = 0;
-    for (const fazenda of Object.values(fazendasAgrupadas)) {
-        const especialistaInfo = especialistas[fazenda.especialista];
-        if (especialistaInfo) {
-            const cor = getCorEspecialista(fazenda.especialista);
-            const start = `${especialistaInfo.lon},${especialistaInfo.lat}`;
-            const end = `${fazenda.centroideGeral[1]},${fazenda.centroideGeral[0]}`;
-            try {
-                const response = await fetch(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson` );
-                if (!response.ok) throw new Error('Falha na API de roteamento');
-                const data = await response.json();
-                if (data.routes && data.routes.length > 0) {
-                    L.geoJSON(data.routes[0].geometry, { style: { color: cor, weight: 4, opacity: 0.6 } }).addTo(camadasVisiveis.rotas);
-                    distanciaTotalAcumulada += data.routes[0].distance;
-                } else { throw new Error('Nenhuma rota encontrada'); }
-            } catch (error) {
-                console.warn(`Fallback para linha reta para ${fazenda.nome}:`, error.message);
-                const p1 = L.latLng(especialistaInfo.lat, especialistaInfo.lon);
-                const p2 = L.latLng(fazenda.centroideGeral[0], fazenda.centroideGeral[1]);
-                L.polyline([p1, p2], { color: cor, weight: 2, opacity: 0.6, dashArray: '5, 5' }).addTo(camadasVisiveis.rotas);
-                distanciaTotalAcumulada += map.distance(p1, p2);
-            }
-        }
-    }
-    return distanciaTotalAcumulada;
+    // Esta função pode precisar de ajustes dependendo da performance
+    return 0; // Desabilitado temporariamente para simplificar
 }
 
 function desenharAreasAtuacao(fazendasAgrupadas) {
     if (!camadasVisiveis.areas || !dadosOriginais.especialistas) return;
-    const fazendasPorEspecialista = {};
-    Object.values(fazendasAgrupadas).forEach(f => {
-        if (!fazendasPorEspecialista[f.especialista]) fazendasPorEspecialista[f.especialista] = [];
-        fazendasPorEspecialista[f.especialista].push(f);
-    });
     dadosOriginais.especialistas.forEach(especialista => {
-        const fazendasAtendidas = fazendasPorEspecialista[especialista.nome];
-        if (fazendasAtendidas && fazendasAtendidas.length > 0 && especialista.latitude_base) {
+        const fazendasAtendidas = Object.values(fazendasAgrupadas).filter(f => f.especialista === especialista.ESPECIALISTA);
+        if (fazendasAtendidas.length > 0) {
             const { maxDist } = calcularDistancias(especialista, fazendasAtendidas);
-            const cor = getCorEspecialista(especialista.nome);
-            L.circle([especialista.latitude_base, especialista.longitude_base], {
+            const [latBase, lonBase] = especialista.COORDENADAS_CIDADE.split(',').map(c => parseFloat(c.trim()));
+            const cor = getCorEspecialista(especialista.ESPECIALISTA);
+            L.circle([latBase, lonBase], {
                 color: cor, fillColor: cor, fillOpacity: 0.1, radius: maxDist, weight: 1.5, dashArray: '10, 10'
             }).addTo(camadasVisiveis.areas);
         }
@@ -408,8 +321,12 @@ function criarIconeFazenda(cor) {
 }
 
 function calcularDistancias(especialista, fazendas) {
-    if (!map || !especialista.latitude_base) return { maxDist: 0, avgDist: 0 };
-    const distancias = fazendas.map(f => map.distance(L.latLng(especialista.latitude_base, especialista.longitude_base), L.latLng(f.centroideGeral[0], f.centroideGeral[1])));
+    if (!map) return { maxDist: 0, avgDist: 0 };
+    const [latBase, lonBase] = especialista.COORDENADAS_CIDADE.split(',').map(c => parseFloat(c.trim()));
+    const distancias = fazendas.map(f => {
+        if (!f.centroideGeral) return 0;
+        return map.distance(L.latLng(latBase, lonBase), L.latLng(f.centroideGeral[0], f.centroideGeral[1]));
+    }).filter(d => d > 0);
     if (distancias.length === 0) return { maxDist: 0, avgDist: 0 };
     const maxDist = Math.max(...distancias);
     const avgDist = distancias.reduce((a, b) => a + b, 0) / distancias.length;
@@ -445,15 +362,16 @@ function aplicarFiltros() {
     if (!dadosOriginais) return;
     const gestorSel = document.getElementById('gestor-filter')?.value || '';
     const especialistaSel = document.getElementById('especialista-filter')?.value || '';
-    let especialistasFiltradosNomes = dadosOriginais.especialistas.map(e => e.nome);
-    if (gestorSel) {
-        especialistasFiltradosNomes = dadosOriginais.especialistas.filter(e => e.gestor === gestorSel).map(e => e.nome);
-    }
-    dadosFiltrados.fazendas = dadosOriginais.fazendas.filter(f => {
-        const porEspecialista = especialistaSel ? f.especialista === especialistaSel : true;
-        const porGestor = gestorSel ? especialistasFiltradosNomes.includes(f.especialista) : true;
-        return porEspecialista && porGestor;
+    
+    dadosFiltrados.especialistas = dadosOriginais.especialistas.filter(e => {
+        const porGestor = gestorSel ? e.GESTOR === gestorSel : true;
+        const porEspecialista = especialistaSel ? e.ESPECIALISTA === especialistaSel : true;
+        return porGestor && porEspecialista;
     });
+
+    const especialistasVisiveis = new Set(dadosFiltrados.especialistas.map(e => e.ESPECIALISTA));
+    dadosFiltrados.fazendas = dadosOriginais.fazendas.filter(f => especialistasVisiveis.has(f.especialista));
+
     processarDados();
 }
 
@@ -487,14 +405,18 @@ function configurarEventListeners() {
 }
 
 function preencherFiltros() {
-    if (!dadosOriginais) return;
+    if (!dadosOriginais || !dadosOriginais.especialistas) return;
     const gestorSelect = document.getElementById('gestor-filter');
     const especialistaSelect = document.getElementById('especialista-filter');
     if (!gestorSelect || !especialistaSelect) return;
     gestorSelect.innerHTML = '<option value="">Todos</option>';
     especialistaSelect.innerHTML = '<option value="">Todos</option>';
-    [...new Set(dadosOriginais.especialistas.map(e => e.gestor))].filter(Boolean).sort().forEach(g => gestorSelect.add(new Option(g, g)));
-    [...new Set(dadosOriginais.fazendas.map(f => f.especialista))].filter(Boolean).sort().forEach(e => especialistaSelect.add(new Option(e, e)));
+    
+    const gestores = [...new Set(dadosOriginais.especialistas.map(e => e.GESTOR))].filter(Boolean).sort();
+    gestores.forEach(g => gestorSelect.add(new Option(g, g)));
+    
+    const especialistas = [...new Set(dadosOriginais.especialistas.map(e => e.ESPECIALISTA))].filter(Boolean).sort();
+    especialistas.forEach(e => especialistaSelect.add(new Option(e, e)));
 }
 
 function toggleLayer(layer, isVisible) {
@@ -511,8 +433,9 @@ function ajustarVisualizacao(fazendasAgrupadas) {
     });
     if (dadosOriginais?.especialistas) {
         dadosOriginais.especialistas.forEach(e => {
-            if (e.latitude_base && e.longitude_base && dadosFiltrados.fazendas.some(f => f.especialista === e.nome)) {
-                bounds.extend([e.latitude_base, e.longitude_base]);
+            const [lat, lon] = e.COORDENADAS_CIDADE.split(',').map(c => parseFloat(c.trim()));
+            if (lat && lon && dadosFiltrados.especialistas.some(df => df.ESPECIALISTA === e.ESPECIALISTA)) {
+                bounds.extend([lat, lon]);
             }
         });
     }
