@@ -1,5 +1,5 @@
 // ===================================================================
-//  ARQUIVO: script.js (VERSÃO FINAL - LÓGICA V11 + API HÍBRIDA + JSON)
+//  ARQUIVO: script.js (VERSÃO FINAL - LÓGICA V11 + API HÍBRIDA)
 // ===================================================================
 
 // --- CONFIGURAÇÃO DAS APIS ---
@@ -11,7 +11,7 @@ const JSONBIN_CONFIG = {
 };
 const GOOGLE_SCRIPT_CONFIG = {
     // COLE A URL DA SUA IMPLANTAÇÃO DO GOOGLE APPS SCRIPT AQUI
-    url: 'https://script.google.com/macros/s/AKfycbxDGlKNbAUAiCq7JznLqXlEHpgo1r7ioJW_NsPABBY5hrR_0njMU93eSfGJZeMCouqdQg/exec'
+    url: 'https://script.google.com/macros/s/AKfycbwPG367FXx9zProM_9vOXedCjntk6t4upUnduCXUvYBxPNjEfPPh_1xd2SKWnv4AnhF6w/exec'
 };
 
 // --- SERVIÇO DE API HÍBRIDO ---
@@ -52,10 +52,11 @@ function UserManagement() {
         const result = await APIService.postData(payload);
         setLoading(false);
         if (result.status === 'success') {
-            alert('Entrada adicionada com sucesso na planilha! Para ver a mudança no mapa, atualize os dados no JSONBin.io e recarregue a página.');
-        } else {
-            alert('Ocorreu um erro ao adicionar a entrada.');
-        }
+            alert('Entrada adicionada com sucesso! A página será recarregada para mostrar a atualização.');
+        window.location.reload(); // Recarrega a página automaticamente
+    } else {
+        alert('Ocorreu um erro ao adicionar a entrada.');
+    }
     };
     if (loading) return React.createElement('div', null, 'Adicionando...');
     return React.createElement('div', { style: { padding: '20px' } },
