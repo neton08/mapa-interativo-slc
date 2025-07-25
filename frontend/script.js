@@ -148,9 +148,16 @@ async function carregarDados() {
 
         dados.forEach(item => {
             try {
+                // VERIFICAÇÃO DE SEGURANÇA: Pula a linha inteira se os dados essenciais estiverem faltando
+                if (!item.ESPECIALISTA || !item.COORDENADAS_BASE || !item.COORDENADAS_UNIDADE) {
+                    console.warn("Item de dados ignorado por falta de informações essenciais:", item);
+                    return; // 'return' aqui age como 'continue' no forEach, pulando para o próximo item.
+                }
+
+                // Adiciona o especialista se ainda não existir
                 if (!especialistasMap.has(item.ESPECIALISTA)) {
                     const [lat, lon] = item.COORDENADAS_BASE.split(',').map(c => parseFloat(c.trim()));
-                    if(isNaN(lat) || isNaN(lon)) return; // Pula se a coordenada da base for inválida
+                    if(isNaN(lat) || isNaN(lon)) return; 
                     especialistasMap.set(item.ESPECIALISTA, {
                         nome: item.ESPECIALISTA,
                         gestor: item.GESTOR,
@@ -159,8 +166,10 @@ async function carregarDados() {
                         longitude_base: lon
                     });
                 }
+                
+                // Adiciona a fazenda
                 const [lat, lon] = item.COORDENADAS_UNIDADE.split(',').map(c => parseFloat(c.trim()));
-                if(isNaN(lat) || isNaN(lon)) return; // Pula se a coordenada da unidade for inválida
+                if(isNaN(lat) || isNaN(lon)) return; 
                 dadosOriginais.fazendas.push({
                     nome: item.UNIDADE,
                     especialista: item.ESPECIALISTA,
