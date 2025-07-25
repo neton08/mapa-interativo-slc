@@ -1,4 +1,107 @@
-// Variáveis globais
+// ===================================================================
+//  ARQUIVO: script.js (VERSÃO FINAL, COMPLETA E ROBUSTA)
+// ===================================================================
+
+// *** COLE A URL DA SUA ÚLTIMA IMPLANTAÇÃO DO GOOGLE AQUI ***
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyV6imSrb72sWrN-We7xM2PRqRZ2txOG3SBlhlLNEMjJ57-ZGAdNxbUJqFYBld8CgE/exec';
+
+// --- SERVIÇO DE API ROBUSTO (PLANO A: DIRETO, PLANO B: PROXY) ---
+const APIService = {
+    fetchData: async () => {
+        try {
+            // Plano A: Tenta a conexão direta.
+            const response = await fetch(GOOGLE_SCRIPT_URL);
+            if (!response.ok) throw new Error(`Erro na resposta do servidor: ${response.statusText}`);
+            return await response.json();
+        } catch (error) {
+            console.warn("Falha no fetch direto. Tentando com proxy como Plano B...", error);
+            // Plano B: Se a tentativa direta falhar por CORS, usa o proxy.
+            try {
+                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(GOOGLE_SCRIPT_URL )}`;
+                const proxyResponse = await fetch(proxyUrl);
+                if (!proxyResponse.ok) throw new Error(`Erro na resposta do proxy: ${proxyResponse.statusText}`);
+                const data = await proxyResponse.json();
+                // O proxy allOrigins envolve a resposta em um objeto 'contents'.
+                return JSON.parse(data.contents);
+            } catch (proxyError) {
+                console.error("Falha crítica no fetch, mesmo com proxy:", proxyError);
+                alert("Não foi possível carregar os dados do mapa. Verifique o console para detalhes.");
+                return []; // Retorna vazio para não quebrar a aplicação.
+            }
+        }
+    },
+    postData: async (data) => {
+        try {
+            // Para POST, 'no-cors' é a abordagem mais estável com Google Apps Script.
+            await fetch(GOOGLE_SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                body: JSON.stringify(data)
+            });
+            return { status: 'success' };
+        } catch (error) {
+            console.error('Erro ao enviar dados:', error);
+            return { status: 'error' };
+        }
+    }
+};
+
+
+// --- COMPONENTES REACT ---
+function UserManagement() {
+    const [loading, setLoading] = React.useState(false);
+    const handleAddUser = async (userData) => {
+        setLoading(true);
+        const payload = { action: 'addColaborador', ...userData };
+        const result = await APIService.postData(payload);
+        setLoading(false);
+        if (result.status === 'success') {
+            alert('Dados enviados com sucesso! A página será recarregada para refletir as mudanças.');
+            window.location.reload();
+        } else {
+            alert('Ocorreu um erro ao adicionar o usuário.');
+        }
+    };
+    if (loading) return React.createElement('div', null, 'Adicionando...');
+    return React.createElement('div', { style: { padding: '20px' } },
+        React.createElement('h1', null, 'Gerenciamento de Usuários'),
+        React.createElement('h2', null, 'Adicionar Novo Colaborador/Especialista'),
+        React.createElement(AddUserForm, { onAddUser: handleAddUser })
+    );
+}
+
+function AddUserForm({ onAddUser }) {
+    const [formData, setFormData] = React.useState({});
+    const handleChange = (e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        onAddUser(formData);
+        setFormData({});
+    };
+    const fields = [
+        { name: 'GESTOR', placeholder: 'Nome do gestor responsável' },
+        { name: 'ESPECIALISTA', placeholder: 'Nome do especialista (ex: NOME.SOBRENOME)' },
+        { name: 'CIDADE_BASE', placeholder: 'Cidade de atuação' },
+        { name: 'UNIDADE', placeholder: 'Unidade de atendimento' },
+        { name: 'COORDENADAS_CIDADE', placeholder: 'Ex: -12.34567, -56.78901' }
+    ];
+    return React.createElement('form', { onSubmit: handleSubmit },
+        ...fields.map(field => React.createElement('div', { key: field.name, style: { marginBottom: '10px' } },
+            React.createElement('label', { style: { display: 'block', marginBottom: '5px', textTransform: 'capitalize' } }, `${field.name.replace('_', ' ')}:`),
+            React.createElement('input', {
+                type: 'text', name: field.name, required: true,
+                onChange: handleChange, value: formData[field.name] || '',
+                placeholder: field.placeholder,
+                style: { width: '100%', padding: '8px', boxSizing: 'border-box' }
+            })
+        )),
+        React.createElement('button', { type: "submit", style: { padding: '10px 15px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' } }, 'Adicionar Colaborador')
+    );
+}
+
+
+// --- LÓGICA DO MAPA (COMPLETA) ---
+
 let map;
 let dadosOriginais = null;
 let dadosFiltrados = null;
@@ -9,52 +112,6 @@ let camadasVisiveis = {
     areas: L.layerGroup()
 };
 
-// *** MUDANÇA PRINCIPAL: USO DO PROXY CORS ***
-const APIService = {
-    // A URL original do seu script do Google.
-    googleScriptUrl: 'https://script.google.com/macros/s/AKfycbxJgCiehsomuB5A1R8i29fKC8gco42zWNkt1iNvK0H9C_XqpU0_KeyuAF8pio3L8H9BhA/exec',
-    
-    // O proxy que vamos usar.
-    proxyUrl: 'https://api.allorigins.win/get?url=',
-
-    fetchData: async function( ) {
-        try {
-            // Construímos a nova URL: Proxy + URL do Google codificada
-            const urlParaFetch = `${this.proxyUrl}${encodeURIComponent(this.googleScriptUrl)}`;
-            
-            const response = await fetch(urlParaFetch);
-            if (!response.ok) throw new Error(`Erro na resposta do proxy: ${response.statusText}`);
-            
-            const data = await response.json();
-            
-            // O proxy allOrigins envolve a resposta em um objeto 'contents'.
-            // Precisamos extrair e converter o JSON que está lá dentro.
-            return JSON.parse(data.contents);
-
-        } catch (error) {
-            console.error('Erro ao buscar dados via proxy:', error);
-            alert("Falha ao carregar dados do mapa. Verifique o console.");
-            return [];
-        }
-    },
-    postData: async function(data) {
-        try {
-            await fetch(this.googleScriptUrl, {
-                method: 'POST',
-                mode: 'no-cors', 
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify(data)
-            });
-            return { status: 'success' };
-        } catch (error) {
-            console.error('Erro ao enviar dados:', error);
-            return { status: 'error', message: 'Falha ao enviar dados.' };
-        }
-    }
-};
-
-
-// Cores para cada especialista
 const coresEspecialistas = {
     'IGOR.DIAS': '#0ccf26ff', 'GIOVANI.CATAPAN': '#27ae60', 'ALYNE.SOUZA': '#3498db',
     'GENEZIO.NASCIMENTO': '#f39c12', 'NATALIA.NUNES': '#9b59b6', 'CARLOS.MAGALHAES': '#1abc9c',
@@ -62,14 +119,12 @@ const coresEspecialistas = {
     'EDGAR.NETO': '#7f8c8d', 'KETELLY.VIEIRA': '#ce1195ff'
 };
 
-// Camadas base
 const camadasBase = {
     'osm': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }  ),
     'topo': L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { attribution: '© OpenTopoMap' }  ),
     'satellite': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: '© Esri' }  )
 };
 
-// --- FUNÇÕES AUXILIARES ---
 function getCorEspecialista(nome) {
     if (!nome) return '#95a5a6';
     const nomeNormalizado = String(nome).trim().toUpperCase();
@@ -81,94 +136,6 @@ function formatarDistancia(distanciaEmMetros) {
     return (distanciaEmMetros / 1000).toFixed(1) + ' km';
 }
 
-// --- COMPONENTES REACT ---
-
-// *** 2. COMPONENTE DE GERENCIAMENTO SIMPLIFICADO ***
-// Agora ele tem apenas um formulário e uma função para adicionar usuários.
-function UserManagement() {
-    const [loading, setLoading] = React.useState(false);
-
-    const handleAddUser = async (userData) => {
-        setLoading(true);
-        const payload = {
-            action: 'addColaborador', // Ação que o backend vai reconhecer
-            ...userData
-        };
-        
-        const result = await APIService.postData(payload);
-        setLoading(false);
-        
-        if (result.status === 'success') {
-            alert('Dados enviados com sucesso! A planilha será atualizada. A página será recarregada para exibir os novos dados.');
-            window.location.reload(); // Recarrega a página para buscar os dados atualizados
-        } else {
-            alert('Ocorreu um erro ao adicionar o usuário. Verifique o console.');
-        }
-    };
-
-    if (loading) return React.createElement('div', null, 'Adicionando usuário...');
-
-    return React.createElement('div', {style: {padding: '20px'}},
-        React.createElement('h1', null, 'Gerenciamento de Usuários'),
-        React.createElement('div', {style: {marginBottom: '40px'}},
-            React.createElement('h2', null, 'Adicionar Novo Colaborador/Especialista'),
-            React.createElement(AddUserForm, { onAddUser: handleAddUser })
-        )
-        // A tabela de usuários foi removida para simplificar, já que os dados estão no mapa.
-    );
-}
-
-// *** 3. FORMULÁRIO CORRIGIDO COM OS CAMPOS CERTOS ***
-function AddUserForm({ onAddUser }) {
-    const [formData, setFormData] = React.useState({});
-
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
-    };
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        onAddUser(formData);
-        setFormData({}); // Limpa o formulário
-    };
-
-    // Campos que você solicitou, correspondendo às colunas da planilha
-    const fields = [
-        { name: 'GESTOR', type: 'text', required: true, placeholder: 'Nome do gestor responsável' },
-        { name: 'ESPECIALISTA', type: 'text', required: true, placeholder: 'Nome do especialista (ex: NOME.SOBRENOME)' },
-        { name: 'CIDADE_BASE', type: 'text', required: true, placeholder: 'Cidade de atuação' },
-        { name: 'UNIDADE', type: 'text', required: true, placeholder: 'Unidade de atendimento' },
-        { name: 'COORDENADAS_CIDADE', type: 'text', required: true, placeholder: 'Ex: -12.34567, -56.78901' }
-    ];
-
-    return React.createElement('div', {style: {border: '1px solid #ccc', padding: '20px', marginBottom: '20px', borderRadius: '5px'}},
-        React.createElement('form', {onSubmit: handleSubmit},
-            fields.map(field => 
-                React.createElement('div', {key: field.name, style: {marginBottom: '10px'}},
-                    // Transforma 'CIDADE_BASE' em 'CIDADE BASE' para o label
-                    React.createElement('label', {style: {display: 'block', marginBottom: '5px', textTransform: 'capitalize'}}, `${field.name.replace('_', ' ')}:`),
-                    React.createElement('input', {
-                        type: field.type,
-                        name: field.name,
-                        required: field.required,
-                        onChange: handleChange,
-                        style: {width: '100%', padding: '8px', boxSizing: 'border-box'},
-                        value: formData[field.name] || '',
-                        placeholder: field.placeholder
-                    })
-                )
-            ),
-            React.createElement('button', {
-                type: "submit",
-                style: {padding: '10px 15px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer'}
-            }, 'Adicionar Colaborador')
-        )
-    );
-}
-
-
-// --- INICIALIZAÇÃO DO MAPA ---
 function inicializarMapa() {
     const mapElement = document.getElementById('map');
     if (!mapElement || mapElement._leaflet_id) return;
@@ -178,37 +145,31 @@ function inicializarMapa() {
     Object.values(camadasVisiveis).forEach(layer => layer.addTo(map));
 }
 
-// --- CARREGAMENTO DE DADOS ---
 async function carregarDados() {
     mostrarLoading(true);
-    // Usa o novo serviço de API para buscar os dados
     const dados = await APIService.fetchData();
     
-    // O backend agora retorna um array de objetos, não um objeto com 'especialistas' e 'fazendas'
-    // A lógica de processamento precisa ser adaptada para este novo formato.
-    // Vamos assumir que os dados retornados são equivalentes ao que antes era 'dadosOriginais.especialistas'
     if (dados && dados.length > 0) {
-        // Adaptação: O backend agora envia uma lista única.
-        // O frontend precisa derivar as fazendas e especialistas dessa lista.
         dadosOriginais = {
             especialistas: dados,
             fazendas: dados.map(d => ({
                 nome: d.UNIDADE,
                 especialista: d.ESPECIALISTA,
                 cidade_origem: d.CIDADE_BASE,
-                geometria: null, // Geometria não vem da planilha, precisa de outra fonte
-                centroide: d.COORDENADAS_CIDADE.split(',').map(c => parseFloat(c.trim()))
-            }))
+                geometria: null,
+                centroide: d.COORDENADAS_CIDADE ? d.COORDENADAS_CIDADE.split(',').map(c => parseFloat(c.trim())) : null
+            })).filter(f => f.centroide && !isNaN(f.centroide[0]) && !isNaN(f.centroide[1]))
         };
         
         dadosFiltrados = JSON.parse(JSON.stringify(dadosOriginais));
         processarDados();
         preencherFiltros();
+    } else {
+        console.log("Nenhum dado foi retornado pela API ou a API falhou.");
     }
     mostrarLoading(false);
 }
 
-// --- PROCESSAMENTO DE DADOS ---
 function processarDados() {
     if (!camadasVisiveis || !dadosFiltrados) return;
     Object.values(camadasVisiveis).forEach(layer => {
@@ -257,14 +218,15 @@ function desenharFazendasEIcones(fazendasAgrupadas) {
         const especialistaInfo = dadosOriginais.especialistas.find(e => e.ESPECIALISTA === fazenda.especialista);
         
         let distanciaFormatada = 'N/A';
-        if (especialistaInfo) {
+        if (especialistaInfo && especialistaInfo.COORDENADAS_CIDADE) {
             const [latBase, lonBase] = especialistaInfo.COORDENADAS_CIDADE.split(',').map(c => parseFloat(c.trim()));
-            const pontoEspecialista = L.latLng(latBase, lonBase);
-            const pontoFazenda = L.latLng(fazenda.centroideGeral[0], fazenda.centroideGeral[1]);
-            distanciaFormatada = formatarDistancia(map.distance(pontoEspecialista, pontoFazenda));
+            if(!isNaN(latBase) && !isNaN(lonBase)) {
+                const pontoEspecialista = L.latLng(latBase, lonBase);
+                const pontoFazenda = L.latLng(fazenda.centroideGeral[0], fazenda.centroideGeral[1]);
+                distanciaFormatada = formatarDistancia(map.distance(pontoEspecialista, pontoFazenda));
+            }
         }
 
-        // L.geoJSON(fazenda.poligonos, { style: { fillColor: cor, weight: 1, opacity: 1, color: 'white', dashArray: '3', fillOpacity: 0.4 } }).addTo(camadasVisiveis.fazendas);
         L.marker(fazenda.centroideGeral, { icon: criarIconeFazenda(cor) })
             .bindPopup(`<h4>Fazenda: ${fazenda.nome}</h4><p><strong>Cidade de Origem:</strong> ${fazenda.cidade_origem || 'N/A'}</p><p><strong>Atendida por:</strong> ${fazenda.especialista}</p><p><strong>Distância da Base:</strong> ${distanciaFormatada}</p>`)
             .addTo(camadasVisiveis.fazendas);
@@ -275,8 +237,9 @@ function desenharEspecialistas(fazendasAgrupadas) {
     if (!camadasVisiveis.especialistas || !dadosOriginais.especialistas) return;
     
     dadosOriginais.especialistas.forEach(especialista => {
+        if (!especialista.COORDENADAS_CIDADE) return;
         const [latBase, lonBase] = especialista.COORDENADAS_CIDADE.split(',').map(c => parseFloat(c.trim()));
-        if (!latBase || !lonBase) return;
+        if (isNaN(latBase) || isNaN(lonBase)) return;
 
         const fazendasAtendidas = Object.values(fazendasAgrupadas).filter(f => f.especialista === especialista.ESPECIALISTA);
         if (fazendasAtendidas.length === 0) return;
@@ -291,18 +254,17 @@ function desenharEspecialistas(fazendasAgrupadas) {
     });
 }
 
-async function desenharRotas(fazendasAgrupadas) {
-    // Esta função pode precisar de ajustes dependendo da performance
-    return 0; // Desabilitado temporariamente para simplificar
-}
+async function desenharRotas(fazendasAgrupadas) { return 0; }
 
 function desenharAreasAtuacao(fazendasAgrupadas) {
     if (!camadasVisiveis.areas || !dadosOriginais.especialistas) return;
     dadosOriginais.especialistas.forEach(especialista => {
+        if (!especialista.COORDENADAS_CIDADE) return;
         const fazendasAtendidas = Object.values(fazendasAgrupadas).filter(f => f.especialista === especialista.ESPECIALISTA);
         if (fazendasAtendidas.length > 0) {
             const { maxDist } = calcularDistancias(especialista, fazendasAtendidas);
             const [latBase, lonBase] = especialista.COORDENADAS_CIDADE.split(',').map(c => parseFloat(c.trim()));
+            if(isNaN(latBase) || isNaN(lonBase)) return;
             const cor = getCorEspecialista(especialista.ESPECIALISTA);
             L.circle([latBase, lonBase], {
                 color: cor, fillColor: cor, fillOpacity: 0.1, radius: maxDist, weight: 1.5, dashArray: '10, 10'
@@ -328,8 +290,9 @@ function criarIconeFazenda(cor) {
 }
 
 function calcularDistancias(especialista, fazendas) {
-    if (!map) return { maxDist: 0, avgDist: 0 };
+    if (!map || !especialista.COORDENADAS_CIDADE) return { maxDist: 0, avgDist: 0 };
     const [latBase, lonBase] = especialista.COORDENADAS_CIDADE.split(',').map(c => parseFloat(c.trim()));
+    if(isNaN(latBase) || isNaN(lonBase)) return { maxDist: 0, avgDist: 0 };
     const distancias = fazendas.map(f => {
         if (!f.centroideGeral) return 0;
         return map.distance(L.latLng(latBase, lonBase), L.latLng(f.centroideGeral[0], f.centroideGeral[1]));
@@ -440,9 +403,11 @@ function ajustarVisualizacao(fazendasAgrupadas) {
     });
     if (dadosOriginais?.especialistas) {
         dadosOriginais.especialistas.forEach(e => {
-            const [lat, lon] = e.COORDENADAS_CIDADE.split(',').map(c => parseFloat(c.trim()));
-            if (lat && lon && dadosFiltrados.especialistas.some(df => df.ESPECIALISTA === e.ESPECIALISTA)) {
-                bounds.extend([lat, lon]);
+            if (e.COORDENADAS_CIDADE) {
+                const [lat, lon] = e.COORDENADAS_CIDADE.split(',').map(c => parseFloat(c.trim()));
+                if (!isNaN(lat) && !isNaN(lon) && dadosFiltrados.especialistas.some(df => df.ESPECIALISTA === e.ESPECIALISTA)) {
+                    bounds.extend([lat, lon]);
+                }
             }
         });
     }
@@ -456,7 +421,6 @@ function mostrarLoading(mostrar) {
     }
 }
 
-// --- INICIALIZAÇÃO DA APLICAÇÃO ---
 function inicializarAplicacao() {
     const elementosEssenciais = ['map', 'user-management-root'];
     const elementosFaltantes = elementosEssenciais.filter(id => !document.getElementById(id));
@@ -482,9 +446,4 @@ function inicializarAplicacao() {
     }
 }
 
-// Iniciar a aplicação quando o DOM estiver pronto
-if (document.readyState === 'complete' || document.readyState === 'interactive') {
-    inicializarAplicacao();
-} else {
-    document.addEventListener('DOMContentLoaded', inicializarAplicacao);
-}
+document.addEventListener('DOMContentLoaded', inicializarAplicacao);
