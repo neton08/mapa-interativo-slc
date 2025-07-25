@@ -125,8 +125,28 @@ const camadasBase = {
 };
 
 function getCorEspecialista(nome) {
-    if (!nome) return '#95a5a6';
-    return coresEspecialistas[String(nome).trim().toUpperCase()] || '#95a5a6';
+    if (!nome) return '#95a5a6'; // Cor padrão para dados inválidos
+
+    const nomeNormalizado = String(nome).trim().toUpperCase();
+
+    // 1. Verifica se a cor já existe (no objeto original ou já gerada)
+    if (coresEspecialistas[nomeNormalizado]) {
+        return coresEspecialistas[nomeNormalizado];
+    }
+
+    // 2. Se não existe, gera uma cor nova e aleatória
+    // Esta fórmula gera cores vibrantes e evita tons muito claros ou escuros
+    const hue = Math.floor(Math.random() * 360); // Matiz de 0 a 360 (círculo de cores)
+    const saturation = Math.floor(Math.random() * 30) + 70; // Saturação de 70% a 100% (viva)
+    const lightness = Math.floor(Math.random() * 20) + 50;  // Luminosidade de 50% a 70% (nem muito escura, nem muito clara)
+    
+    const novaCor = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+
+    // 3. Armazena a nova cor para uso futuro nesta sessão
+    console.log(`Nova cor gerada para ${nomeNormalizado}: ${novaCor}`);
+    coresEspecialistas[nomeNormalizado] = novaCor;
+
+    return novaCor;
 }
 
 function formatarDistancia(distanciaEmMetros) {
