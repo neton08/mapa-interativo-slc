@@ -13,7 +13,7 @@ let camadasVisiveis = {
 // Centraliza a comunicação com o backend do Google Apps Script.
 const APIService = {
     // Substitua esta URL pela URL da sua implantação do Google Apps Script
-    url: 'https://script.google.com/macros/s/AKfycbxNg-AeiraleJJRspvBexnzESKcSDfPvdHBJebX8VbVDDwXZMoYZRyZeJDhvszR81tsvg/exec',
+    url: 'https://script.google.com/macros/s/AKfycby3bLDedFArVym5p1iGZU1F1cQnaK8vuUWk71bd9uRPxASJ-9yWpYUPnSt_nbh-Jm3sHg/exec',
 
     fetchData: async function( ) {
         try {
