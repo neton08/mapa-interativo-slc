@@ -1,6 +1,6 @@
 const APIService = {
     // COLE A URL QUE VOCÊ COPIOU DO JSONBIN.IO AQUI
-    url: 'COLE_A_URL_DO_SEU_BIN_AQUI',
+    url: 'https://api.jsonbin.io/v3/b/68839a4dae596e708fbba21b',
 
     fetchData: async () => {
         try {
