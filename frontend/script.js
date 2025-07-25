@@ -148,15 +148,15 @@ async function carregarDados() {
 
         dados.forEach(item => {
             try {
-                // VERIFICAÇÃO DE SEGURANÇA: Pula a linha inteira se os dados essenciais estiverem faltando
-                if (!item.ESPECIALISTA || !item.COORDENADAS_BASE || !item.COORDENADAS_UNIDADE) {
+                // CORREÇÃO APLICADA AQUI: Trocado 'COORDENADAS_BASE' por 'COORDENADAS_CIDADE'
+                if (!item.ESPECIALISTA || !item.COORDENADAS_CIDADE || !item.COORDENADAS_UNIDADE) {
                     console.warn("Item de dados ignorado por falta de informações essenciais:", item);
-                    return; // 'return' aqui age como 'continue' no forEach, pulando para o próximo item.
+                    return; 
                 }
 
-                // Adiciona o especialista se ainda não existir
                 if (!especialistasMap.has(item.ESPECIALISTA)) {
-                    const [lat, lon] = item.COORDENADAS_BASE.split(',').map(c => parseFloat(c.trim()));
+                    // CORREÇÃO APLICADA AQUI: Lendo da coluna correta
+                    const [lat, lon] = item.COORDENADAS_CIDADE.split(',').map(c => parseFloat(c.trim()));
                     if(isNaN(lat) || isNaN(lon)) return; 
                     especialistasMap.set(item.ESPECIALISTA, {
                         nome: item.ESPECIALISTA,
@@ -167,7 +167,6 @@ async function carregarDados() {
                     });
                 }
                 
-                // Adiciona a fazenda
                 const [lat, lon] = item.COORDENADAS_UNIDADE.split(',').map(c => parseFloat(c.trim()));
                 if(isNaN(lat) || isNaN(lon)) return; 
                 dadosOriginais.fazendas.push({
