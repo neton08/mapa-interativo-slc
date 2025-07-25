@@ -1,33 +1,23 @@
-// ===================================================================
-//  ARQUIVO: script.js (VERSÃO FINAL, COMPLETA E ROBUSTA)
-// ===================================================================
-
-// *** COLE A URL DA SUA ÚLTIMA IMPLANTAÇÃO DO GOOGLE AQUI ***
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyV6imSrb72sWrN-We7xM2PRqRZ2txOG3SBlhlLNEMjJ57-ZGAdNxbUJqFYBld8CgE/exec';
-
-// --- SERVIÇO DE API ROBUSTO (PLANO A: DIRETO, PLANO B: PROXY) ---
 const APIService = {
+    // COLE A URL QUE VOCÊ COPIOU DO JSONBIN.IO AQUI
+    url: 'COLE_A_URL_DO_SEU_BIN_AQUI',
+
     fetchData: async () => {
         try {
-            // Plano A: Tenta a conexão direta.
-            const response = await fetch(GOOGLE_SCRIPT_URL);
-            if (!response.ok) throw new Error(`Erro na resposta do servidor: ${response.statusText}`);
-            return await response.json();
+            // O JSONBin requer um cabeçalho para ler o bin mais recente
+            const response = await fetch(this.url, {
+                headers: {
+                    'X-Master-Key': '$2a$10$Z.' // Chave pública de leitura do JSONBin
+                }
+            });
+            if (!response.ok) throw new Error(`Erro na resposta do JSONBin: ${response.statusText}`);
+            const data = await response.json();
+            // A resposta do JSONBin vem dentro de um objeto 'record'
+            return data.record;
         } catch (error) {
-            console.warn("Falha no fetch direto. Tentando com proxy como Plano B...", error);
-            // Plano B: Se a tentativa direta falhar por CORS, usa o proxy.
-            try {
-                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(GOOGLE_SCRIPT_URL )}`;
-                const proxyResponse = await fetch(proxyUrl);
-                if (!proxyResponse.ok) throw new Error(`Erro na resposta do proxy: ${proxyResponse.statusText}`);
-                const data = await proxyResponse.json();
-                // O proxy allOrigins envolve a resposta em um objeto 'contents'.
-                return JSON.parse(data.contents);
-            } catch (proxyError) {
-                console.error("Falha crítica no fetch, mesmo com proxy:", proxyError);
-                alert("Não foi possível carregar os dados do mapa. Verifique o console para detalhes.");
-                return []; // Retorna vazio para não quebrar a aplicação.
-            }
+            console.error("Falha crítica ao buscar dados do JSONBin:", error);
+            alert("Não foi possível carregar os dados do mapa. Verifique o console.");
+            return [];
         }
     },
     postData: async (data) => {
