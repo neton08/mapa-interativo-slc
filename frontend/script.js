@@ -13,7 +13,7 @@ let camadasVisiveis = {
 const UserService = {
     getGestores: async () => {
         try {
-            const response = await fetch('https://script.google.com/macros/s/AKfycbzeX-BznTzpYADcLUlCY8d8K5Q1bxUvZTN_jR1fLCWUZ-xUyMZ3wWoNGHpvtaUZatZ2pQ/exec?action=getGestores');
+            const response = await fetch('https://script.google.com/macros/s/AKfycbwtL5GzIEwwUnkeBRdFn1eDQ_NspxrQmn4DgsJ1-E8f6WnNluGqXkkevl_eGd6RUMaoEg/exec');
             return await response.json();
         } catch (error) {
             console.error('Erro ao buscar gestores:', error);
@@ -23,7 +23,7 @@ const UserService = {
 
     getColaboradores: async () => {
         try {
-            const response = await fetch('https://script.google.com/macros/s/AKfycbzeX-BznTzpYADcLUlCY8d8K5Q1bxUvZTN_jR1fLCWUZ-xUyMZ3wWoNGHpvtaUZatZ2pQ/exec?action=getColaboradores');
+            const response = await fetch('https://script.google.com/macros/s/AKfycbwtL5GzIEwwUnkeBRdFn1eDQ_NspxrQmn4DgsJ1-E8f6WnNluGqXkkevl_eGd6RUMaoEg/exec');
             return await response.json();
         } catch (error) {
             console.error('Erro ao buscar colaboradores:', error);
@@ -33,7 +33,7 @@ const UserService = {
 
     addGestor: async (gestorData) => {
         try {
-            const response = await fetch('https://script.google.com/macros/s/AKfycbzeX-BznTzpYADcLUlCY8d8K5Q1bxUvZTN_jR1fLCWUZ-xUyMZ3wWoNGHpvtaUZatZ2pQ/exec?action=addGestor', {
+            const response = await fetch('https://script.google.com/macros/s/AKfycbwtL5GzIEwwUnkeBRdFn1eDQ_NspxrQmn4DgsJ1-E8f6WnNluGqXkkevl_eGd6RUMaoEg/exec', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(gestorData)
@@ -47,7 +47,7 @@ const UserService = {
 
     addColaborador: async (colabData) => {
         try {
-            const response = await fetch('https://script.google.com/macros/s/AKfycbzeX-BznTzpYADcLUlCY8d8K5Q1bxUvZTN_jR1fLCWUZ-xUyMZ3wWoNGHpvtaUZatZ2pQ/exec?action=addColaborador', {
+            const response = await fetch('https://script.google.com/macros/s/AKfycbwtL5GzIEwwUnkeBRdFn1eDQ_NspxrQmn4DgsJ1-E8f6WnNluGqXkkevl_eGd6RUMaoEg/exec', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(colabData)
