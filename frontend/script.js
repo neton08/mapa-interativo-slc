@@ -3,7 +3,7 @@ const APIService = {
     url: 'https://api.jsonbin.io/v3/b/68839ecb7b4b8670d8a73a5a',
 
     // COLE A SUA CHAVE 'X-Master-Key' QUE VOCÊ ACABOU DE COPIAR AQUI
-    apiKey: '$2a$10$lJrU.ksPYpWjbNsxB50zk.IDDDTG8nHxxBgBj0DsiFpGT/tWyQmlW',
+    apiKey: '$2a$10$2d6Fwwo3IMTzavWLYo77T.59Lo4//Kn2l.xVwtswt83I248oNkESW',
 
     fetchData: async () => {
         try {
