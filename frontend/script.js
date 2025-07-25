@@ -1,46 +1,40 @@
 // ===================================================================
-//  ARQUIVO: script.js (FINAL - ARQUITETURA HÍBRIDA)
+//  ARQUIVO: script.js (VERSÃO FINAL - LÓGICA V11 + API HÍBRIDA)
 // ===================================================================
 
 // --- CONFIGURAÇÃO DAS APIS ---
 const JSONBIN_CONFIG = {
     // COLE A URL DO SEU BIN AQUI
-    url: 'https://api.jsonbin.io/v3/b/68839ecb7b4b8670d8a73a5a',
+    url: 'https://api.jsonbin.io/v3/b/6883c29b7b4b8670d8a74960',
     // COLE A SUA CHAVE 'X-Master-Key' AQUI
     apiKey: '$2a$10$ho4glL/UKIF5yCn37/l5M.p/9Pt5xG.A3Izi9G8VOX.RTkkFXMygW'
 };
-
 const GOOGLE_SCRIPT_CONFIG = {
     // COLE A URL DA SUA IMPLANTAÇÃO DO GOOGLE APPS SCRIPT AQUI
-    url: 'https://script.google.com/macros/s/AKfycbyVmM9zXclNMoz-4uY75rfz_YneNakewN7yewaWNYx2mF0D4DPH2S_7aIlAtN0NdyPE9w/exec'
+    url: 'https://script.google.com/macros/s/AKfycbxDGlKNbAUAiCq7JznLqXlEHpgo1r7ioJW_NsPABBY5hrR_0njMU93eSfGJZeMCouqdQg/exec'
 };
 
 // --- SERVIÇO DE API HÍBRIDO ---
 const APIService = {
-    fetchData: async () => {
+    fetchData: async ( ) => {
         try {
-            const response = await fetch(JSONBIN_CONFIG.url, {
-                headers: { 'X-Master-Key': JSONBIN_CONFIG.apiKey }
-            });
+            const response = await fetch(JSONBIN_CONFIG.url, { headers: { 'X-Master-Key': JSONBIN_CONFIG.apiKey } });
             if (!response.ok) throw new Error(`Erro ${response.status}: ${response.statusText}`);
             const data = await response.json();
             return data.record;
         } catch (error) {
-            console.error("Falha crítica ao buscar dados do JSONBin:", error);
-            alert(`Não foi possível carregar os dados do mapa: ${error.message}. Verifique a configuração do JSONBin no script.js.`);
+            console.error("Falha ao buscar dados do JSONBin:", error);
+            alert(`Não foi possível carregar os dados do mapa: ${error.message}.`);
             return [];
         }
     },
     postData: async (data) => {
         try {
-            // Usamos 'no-cors' para o POST no Google Script, é mais estável.
-            const response = await fetch(GOOGLE_SCRIPT_CONFIG.url, {
-                method: 'POST',
-                mode: 'no-cors', 
+            await fetch(GOOGLE_SCRIPT_CONFIG.url, {
+                method: 'POST', mode: 'no-cors',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             });
-            // Como é 'no-cors', não podemos ler a resposta, mas a requisição é enviada.
             return { status: 'success' };
         } catch (error) {
             console.error('Erro ao enviar dados para o Google Script:', error);
@@ -49,25 +43,24 @@ const APIService = {
     }
 };
 
-// --- COMPONENTES REACT ---
+// --- COMPONENTES REACT (NOVO FORMULÁRIO) ---
 function UserManagement() {
     const [loading, setLoading] = React.useState(false);
     const handleAddUser = async (userData) => {
         setLoading(true);
-        const payload = { action: 'addColaborador', ...userData };
+        const payload = { action: 'addEntrada', ...userData };
         const result = await APIService.postData(payload);
         setLoading(false);
         if (result.status === 'success') {
-            alert('Colaborador adicionado com sucesso! Por favor, atualize o Bin no site do JSONBin.io com os novos dados da planilha para que as mudanças apareçam no mapa.');
-            // Não recarrega a página, pois a mudança não é instantânea no mapa.
+            alert('Entrada adicionada com sucesso na planilha! Para ver a mudança no mapa, atualize os dados no JSONBin.io e recarregue a página.');
         } else {
-            alert('Ocorreu um erro ao adicionar o colaborador.');
+            alert('Ocorreu um erro ao adicionar a entrada.');
         }
     };
     if (loading) return React.createElement('div', null, 'Adicionando...');
     return React.createElement('div', { style: { padding: '20px' } },
-        React.createElement('h1', null, 'Gerenciamento de Usuários'),
-        React.createElement('h2', null, 'Adicionar Novo Colaborador/Especialista'),
+        React.createElement('h1', null, 'Gerenciamento de Dados'),
+        React.createElement('h2', null, 'Adicionar Nova Entrada'),
         React.createElement(AddUserForm, { onAddUser: handleAddUser })
     );
 }
@@ -81,15 +74,16 @@ function AddUserForm({ onAddUser }) {
         setFormData({});
     };
     const fields = [
-        { name: 'GESTOR', placeholder: 'Nome do gestor responsável' },
-        { name: 'ESPECIALISTA', placeholder: 'Nome do especialista (ex: NOME.SOBRENOME)' },
+        { name: 'GESTOR', placeholder: 'Nome do gestor' },
+        { name: 'ESPECIALISTA', placeholder: 'Nome do especialista' },
         { name: 'CIDADE_BASE', placeholder: 'Cidade de atuação' },
-        { name: 'UNIDADE', placeholder: 'Unidade de atendimento' },
-        { name: 'COORDENADAS_CIDADE', placeholder: 'Ex: -12.34567, -56.78901' }
+        { name: 'COORDENADAS_BASE', placeholder: 'Ex: -18.78, -52.60' },
+        { name: 'UNIDADE', placeholder: 'Nome da fazenda/unidade' },
+        { name: 'COORDENADAS_UNIDADE', placeholder: 'Ex: -18.78, -52.60' }
     ];
     return React.createElement('form', { onSubmit: handleSubmit },
         ...fields.map(field => React.createElement('div', { key: field.name, style: { marginBottom: '10px' } },
-            React.createElement('label', { style: { display: 'block', marginBottom: '5px', textTransform: 'capitalize' } }, `${field.name.replace('_', ' ')}:`),
+            React.createElement('label', { style: { display: 'block', marginBottom: '5px' } }, `${field.name.replace(/_/g, ' ')}:`),
             React.createElement('input', {
                 type: 'text', name: field.name, required: true,
                 onChange: handleChange, value: formData[field.name] || '',
@@ -97,11 +91,11 @@ function AddUserForm({ onAddUser }) {
                 style: { width: '100%', padding: '8px', boxSizing: 'border-box' }
             })
         )),
-        React.createElement('button', { type: "submit", style: { padding: '10px 15px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' } }, 'Adicionar Colaborador')
+        React.createElement('button', { type: "submit", style: { padding: '10px 15px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' } }, 'Adicionar na Planilha')
     );
 }
 
-// --- LÓGICA DO MAPA (COMPLETA) ---
+// --- LÓGICA DO MAPA (BASEADA NO SEU CÓDIGO v11) ---
 
 let map;
 let dadosOriginais = null;
@@ -121,15 +115,14 @@ const coresEspecialistas = {
 };
 
 const camadasBase = {
-    'osm': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }   ),
-    'topo': L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { attribution: '© OpenTopoMap' }   ),
-    'satellite': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: '© Esri' }   )
+    'osm': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' } ),
+    'topo': L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { attribution: '© OpenTopoMap' } ),
+    'satellite': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: '© Esri' } )
 };
 
 function getCorEspecialista(nome) {
     if (!nome) return '#95a5a6';
-    const nomeNormalizado = String(nome).trim().toUpperCase();
-    return coresEspecialistas[nomeNormalizado] || '#95a5a6';
+    return coresEspecialistas[String(nome).trim().toUpperCase()] || '#95a5a6';
 }
 
 function formatarDistancia(distanciaEmMetros) {
@@ -149,33 +142,48 @@ function inicializarMapa() {
 async function carregarDados() {
     mostrarLoading(true);
     const dados = await APIService.fetchData();
-    
     if (dados && dados.length > 0) {
-        dadosOriginais = {
-            especialistas: dados,
-            fazendas: dados.map(d => ({
-                nome: d.UNIDADE,
-                especialista: d.ESPECIALISTA,
-                cidade_origem: d.CIDADE_BASE,
-                geometria: null,
-                centroide: d.COORDENADAS_CIDADE ? d.COORDENADAS_CIDADE.split(',').map(c => parseFloat(c.trim())) : null
-            })).filter(f => f.centroide && !isNaN(f.centroide[0]) && !isNaN(f.centroide[1]))
-        };
+        dadosOriginais = { especialistas: [], fazendas: [] };
+        const especialistasMap = new Map();
+
+        dados.forEach(item => {
+            try {
+                if (!especialistasMap.has(item.ESPECIALISTA)) {
+                    const [lat, lon] = item.COORDENADAS_BASE.split(',').map(c => parseFloat(c.trim()));
+                    if(isNaN(lat) || isNaN(lon)) return; // Pula se a coordenada da base for inválida
+                    especialistasMap.set(item.ESPECIALISTA, {
+                        nome: item.ESPECIALISTA,
+                        gestor: item.GESTOR,
+                        cidade_base: item.CIDADE_BASE,
+                        latitude_base: lat,
+                        longitude_base: lon
+                    });
+                }
+                const [lat, lon] = item.COORDENADAS_UNIDADE.split(',').map(c => parseFloat(c.trim()));
+                if(isNaN(lat) || isNaN(lon)) return; // Pula se a coordenada da unidade for inválida
+                dadosOriginais.fazendas.push({
+                    nome: item.UNIDADE,
+                    especialista: item.ESPECIALISTA,
+                    cidade_origem: item.CIDADE_BASE,
+                    centroide: [lat, lon],
+                    geometria: { type: "Point", coordinates: [lon, lat] }
+                });
+            } catch (e) {
+                console.warn("Erro ao processar item de dados:", item, e);
+            }
+        });
+        dadosOriginais.especialistas = Array.from(especialistasMap.values());
         
         dadosFiltrados = JSON.parse(JSON.stringify(dadosOriginais));
         processarDados();
         preencherFiltros();
-    } else {
-        console.log("Nenhum dado foi retornado pela API ou a API falhou.");
     }
     mostrarLoading(false);
 }
 
 function processarDados() {
     if (!camadasVisiveis || !dadosFiltrados) return;
-    Object.values(camadasVisiveis).forEach(layer => {
-        if (layer && layer.clearLayers) layer.clearLayers();
-    });
+    Object.values(camadasVisiveis).forEach(layer => layer.clearLayers());
     const fazendasAgrupadas = agruparFazendas(dadosFiltrados.fazendas);
     desenharFazendasEIcones(fazendasAgrupadas);
     desenharEspecialistas(fazendasAgrupadas);
@@ -189,9 +197,7 @@ function processarDados() {
 
 function agruparFazendas(listaDeFazendas) {
     const fazendas = {};
-    if (!Array.isArray(listaDeFazendas)) return fazendas;
     listaDeFazendas.forEach(p => {
-        if (!p || !p.nome) return;
         if (!fazendas[p.nome]) {
             fazendas[p.nome] = {
                 nome: p.nome, especialista: p.especialista, cidade_origem: p.cidade_origem,
@@ -216,18 +222,13 @@ function desenharFazendasEIcones(fazendasAgrupadas) {
     Object.values(fazendasAgrupadas).forEach(fazenda => {
         if (!fazenda.centroideGeral) return;
         const cor = getCorEspecialista(fazenda.especialista);
-        const especialistaInfo = dadosOriginais.especialistas.find(e => e.ESPECIALISTA === fazenda.especialista);
-        
+        const especialistaInfo = dadosOriginais.especialistas.find(e => e.nome === fazenda.especialista);
         let distanciaFormatada = 'N/A';
-        if (especialistaInfo && especialistaInfo.COORDENADAS_CIDADE) {
-            const [latBase, lonBase] = especialistaInfo.COORDENADAS_CIDADE.split(',').map(c => parseFloat(c.trim()));
-            if(!isNaN(latBase) && !isNaN(lonBase)) {
-                const pontoEspecialista = L.latLng(latBase, lonBase);
-                const pontoFazenda = L.latLng(fazenda.centroideGeral[0], fazenda.centroideGeral[1]);
-                distanciaFormatada = formatarDistancia(map.distance(pontoEspecialista, pontoFazenda));
-            }
+        if (especialistaInfo && especialistaInfo.latitude_base && especialistaInfo.longitude_base) {
+            const pontoEspecialista = L.latLng(especialistaInfo.latitude_base, especialistaInfo.longitude_base);
+            const pontoFazenda = L.latLng(fazenda.centroideGeral[0], fazenda.centroideGeral[1]);
+            distanciaFormatada = formatarDistancia(map.distance(pontoEspecialista, pontoFazenda));
         }
-
         L.marker(fazenda.centroideGeral, { icon: criarIconeFazenda(cor) })
             .bindPopup(`<h4>Fazenda: ${fazenda.nome}</h4><p><strong>Cidade de Origem:</strong> ${fazenda.cidade_origem || 'N/A'}</p><p><strong>Atendida por:</strong> ${fazenda.especialista}</p><p><strong>Distância da Base:</strong> ${distanciaFormatada}</p>`)
             .addTo(camadasVisiveis.fazendas);
@@ -236,38 +237,58 @@ function desenharFazendasEIcones(fazendasAgrupadas) {
 
 function desenharEspecialistas(fazendasAgrupadas) {
     if (!camadasVisiveis.especialistas || !dadosOriginais.especialistas) return;
-    
     dadosOriginais.especialistas.forEach(especialista => {
-        if (!especialista.COORDENADAS_CIDADE) return;
-        const [latBase, lonBase] = especialista.COORDENADAS_CIDADE.split(',').map(c => parseFloat(c.trim()));
-        if (isNaN(latBase) || isNaN(lonBase)) return;
-
-        const fazendasAtendidas = Object.values(fazendasAgrupadas).filter(f => f.especialista === especialista.ESPECIALISTA);
-        if (fazendasAtendidas.length === 0) return;
-
-        const cor = getCorEspecialista(especialista.ESPECIALISTA);
+        const fazendasAtendidas = Object.values(fazendasAgrupadas).filter(f => f.especialista === especialista.nome);
+        if (fazendasAtendidas.length === 0 || !especialista.latitude_base) return;
+        const cor = getCorEspecialista(especialista.nome);
         const { maxDist, avgDist } = calcularDistancias(especialista, fazendasAtendidas);
         const listaFazendasHtml = fazendasAtendidas.map(f => `<li>${f.nome}</li>`).join('');
-
-        L.marker([latBase, lonBase], { icon: criarIconeEspecialista(cor) })
-            .bindPopup(`<h4>Especialista: ${especialista.ESPECIALISTA}</h4><p><strong>Cidade Base:</strong> ${especialista.CIDADE_BASE || 'N/A'}</p><p><strong>Raio Máximo:</strong> ${formatarDistancia(maxDist)}</p><p><strong>Distância Média:</strong> ${formatarDistancia(avgDist)}</p><p><strong>Unidades Atendidas (${fazendasAtendidas.length}):</strong></p><ul style="margin-top: 5px; padding-left: 20px;">${listaFazendasHtml}</ul>`)
+        L.marker([especialista.latitude_base, especialista.longitude_base], { icon: criarIconeEspecialista(cor) })
+            .bindPopup(`<h4>Especialista: ${especialista.nome}</h4><p><strong>Cidade Base:</strong> ${especialista.cidade_base || 'N/A'}</p><p><strong>Raio Máximo:</strong> ${formatarDistancia(maxDist)}</p><p><strong>Distância Média:</strong> ${formatarDistancia(avgDist)}</p><p><strong>Unidades Atendidas (${fazendasAtendidas.length}):</strong></p><ul style="margin-top: 5px; padding-left: 20px;">${listaFazendasHtml}</ul>`)
             .addTo(camadasVisiveis.especialistas);
     });
 }
 
-async function desenharRotas(fazendasAgrupadas) { return 0; }
+async function desenharRotas(fazendasAgrupadas) {
+    if (!camadasVisiveis.rotas || !map) return 0;
+    const especialistas = dadosOriginais.especialistas.reduce((acc, e) => {
+        if (e.latitude_base && e.longitude_base) acc[e.nome] = { lat: e.latitude_base, lon: e.longitude_base };
+        return acc;
+    }, {});
+    let distanciaTotalAcumulada = 0;
+    for (const fazenda of Object.values(fazendasAgrupadas)) {
+        const especialistaInfo = especialistas[fazenda.especialista];
+        if (especialistaInfo && fazenda.centroideGeral) {
+            const cor = getCorEspecialista(fazenda.especialista);
+            const start = `${especialistaInfo.lon},${especialistaInfo.lat}`;
+            const end = `${fazenda.centroideGeral[1]},${fazenda.centroideGeral[0]}`;
+            try {
+                const response = await fetch(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson` );
+                if (!response.ok) throw new Error('Falha na API de roteamento');
+                const data = await response.json();
+                if (data.routes && data.routes.length > 0) {
+                    L.geoJSON(data.routes[0].geometry, { style: { color: cor, weight: 4, opacity: 0.6 } }).addTo(camadasVisiveis.rotas);
+                    distanciaTotalAcumulada += data.routes[0].distance;
+                }
+            } catch (error) {
+                const p1 = L.latLng(especialistaInfo.lat, especialistaInfo.lon);
+                const p2 = L.latLng(fazenda.centroideGeral[0], fazenda.centroideGeral[1]);
+                L.polyline([p1, p2], { color: cor, weight: 2, opacity: 0.6, dashArray: '5, 5' }).addTo(camadasVisiveis.rotas);
+                distanciaTotalAcumulada += map.distance(p1, p2);
+            }
+        }
+    }
+    return distanciaTotalAcumulada;
+}
 
 function desenharAreasAtuacao(fazendasAgrupadas) {
     if (!camadasVisiveis.areas || !dadosOriginais.especialistas) return;
     dadosOriginais.especialistas.forEach(especialista => {
-        if (!especialista.COORDENADAS_CIDADE) return;
-        const fazendasAtendidas = Object.values(fazendasAgrupadas).filter(f => f.especialista === especialista.ESPECIALISTA);
-        if (fazendasAtendidas.length > 0) {
+        const fazendasAtendidas = Object.values(fazendasAgrupadas).filter(f => f.especialista === especialista.nome);
+        if (fazendasAtendidas.length > 0 && especialista.latitude_base) {
             const { maxDist } = calcularDistancias(especialista, fazendasAtendidas);
-            const [latBase, lonBase] = especialista.COORDENADAS_CIDADE.split(',').map(c => parseFloat(c.trim()));
-            if(isNaN(latBase) || isNaN(lonBase)) return;
-            const cor = getCorEspecialista(especialista.ESPECIALISTA);
-            L.circle([latBase, lonBase], {
+            const cor = getCorEspecialista(especialista.nome);
+            L.circle([especialista.latitude_base, especialista.longitude_base], {
                 color: cor, fillColor: cor, fillOpacity: 0.1, radius: maxDist, weight: 1.5, dashArray: '10, 10'
             }).addTo(camadasVisiveis.areas);
         }
@@ -275,28 +296,20 @@ function desenharAreasAtuacao(fazendasAgrupadas) {
 }
 
 function criarIconeEspecialista(cor) {
-    return L.divIcon({ 
-        className: 'custom-marker', 
-        html: `<div style="background-color: ${cor}; width: 30px; height: 30px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 10px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 14px;"><i class="fas fa-user"></i></div>`, 
-        iconSize: [30, 30], iconAnchor: [15, 15] 
-    });
+    return L.divIcon({ className: 'custom-marker', html: `<div style="background-color: ${cor}; width: 30px; height: 30px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 10px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 14px;"><i class="fas fa-user"></i></div>`, iconSize: [30, 30], iconAnchor: [15, 15] });
 }
 
 function criarIconeFazenda(cor) {
-    return L.divIcon({ 
-        className: 'custom-marker', 
-        html: `<div style="font-size: 24px; color: ${cor}; text-shadow: 0 0 3px white, 0 0 3px white, 0 0 3px white, 0 0 3px white;"><i class="fas fa-tractor"></i></div>`, 
-        iconSize: [24, 24], iconAnchor: [12, 12] 
-    });
+    return L.divIcon({ className: 'custom-marker', html: `<div style="font-size: 24px; color: ${cor}; text-shadow: 0 0 3px white, 0 0 3px white, 0 0 3px white, 0 0 3px white;"><i class="fas fa-tractor"></i></div>`, iconSize: [24, 24], iconAnchor: [12, 12] });
 }
 
 function calcularDistancias(especialista, fazendas) {
-    if (!map || !especialista.COORDENADAS_CIDADE) return { maxDist: 0, avgDist: 0 };
-    const [latBase, lonBase] = especialista.COORDENADAS_CIDADE.split(',').map(c => parseFloat(c.trim()));
-    if(isNaN(latBase) || isNaN(lonBase)) return { maxDist: 0, avgDist: 0 };
+    if (!map || !especialista.latitude_base) return { maxDist: 0, avgDist: 0 };
     const distancias = fazendas.map(f => {
         if (!f.centroideGeral) return 0;
-        return map.distance(L.latLng(latBase, lonBase), L.latLng(f.centroideGeral[0], f.centroideGeral[1]));
+        const p1 = L.latLng(especialista.latitude_base, especialista.longitude_base);
+        const p2 = L.latLng(f.centroideGeral[0], f.centroideGeral[1]);
+        return map.distance(p1, p2);
     }).filter(d => d > 0);
     if (distancias.length === 0) return { maxDist: 0, avgDist: 0 };
     const maxDist = Math.max(...distancias);
@@ -316,7 +329,7 @@ function atualizarEstatisticas(fazendasAgrupadas, distanciaTotal) {
 
 function criarLegenda() {
     const legendaContent = document.getElementById('legend-content');
-    if (!legendaContent || !dadosFiltrados || !dadosFiltrados.fazendas) return;
+    if (!legendaContent || !dadosFiltrados) return;
     legendaContent.innerHTML = '';
     const contadores = {};
     const especialistasNosDados = new Set(dadosFiltrados.fazendas.map(f => f.especialista));
@@ -334,15 +347,13 @@ function aplicarFiltros() {
     const gestorSel = document.getElementById('gestor-filter')?.value || '';
     const especialistaSel = document.getElementById('especialista-filter')?.value || '';
     
-    dadosFiltrados.especialistas = dadosOriginais.especialistas.filter(e => {
-        const porGestor = gestorSel ? e.GESTOR === gestorSel : true;
-        const porEspecialista = especialistaSel ? e.ESPECIALISTA === especialistaSel : true;
-        return porGestor && porEspecialista;
-    });
-
-    const especialistasVisiveis = new Set(dadosFiltrados.especialistas.map(e => e.ESPECIALISTA));
-    dadosFiltrados.fazendas = dadosOriginais.fazendas.filter(f => especialistasVisiveis.has(f.especialista));
-
+    const especialistasFiltradosNomes = new Set(
+        dadosOriginais.especialistas
+            .filter(e => (gestorSel ? e.gestor === gestorSel : true) && (especialistaSel ? e.nome === especialistaSel : true))
+            .map(e => e.nome)
+    );
+    
+    dadosFiltrados.fazendas = dadosOriginais.fazendas.filter(f => especialistasFiltradosNomes.has(f.especialista));
     processarDados();
 }
 
@@ -376,17 +387,17 @@ function configurarEventListeners() {
 }
 
 function preencherFiltros() {
-    if (!dadosOriginais || !dadosOriginais.especialistas) return;
+    if (!dadosOriginais) return;
     const gestorSelect = document.getElementById('gestor-filter');
     const especialistaSelect = document.getElementById('especialista-filter');
     if (!gestorSelect || !especialistaSelect) return;
     gestorSelect.innerHTML = '<option value="">Todos</option>';
     especialistaSelect.innerHTML = '<option value="">Todos</option>';
     
-    const gestores = [...new Set(dadosOriginais.especialistas.map(e => e.GESTOR))].filter(Boolean).sort();
+    const gestores = [...new Set(dadosOriginais.especialistas.map(e => e.gestor))].filter(Boolean).sort();
     gestores.forEach(g => gestorSelect.add(new Option(g, g)));
     
-    const especialistas = [...new Set(dadosOriginais.especialistas.map(e => e.ESPECIALISTA))].filter(Boolean).sort();
+    const especialistas = [...new Set(dadosOriginais.especialistas.map(e => e.nome))].filter(Boolean).sort();
     especialistas.forEach(e => especialistaSelect.add(new Option(e, e)));
 }
 
@@ -404,15 +415,14 @@ function ajustarVisualizacao(fazendasAgrupadas) {
     });
     if (dadosOriginais?.especialistas) {
         dadosOriginais.especialistas.forEach(e => {
-            if (e.COORDENADAS_CIDADE) {
-                const [lat, lon] = e.COORDENADAS_CIDADE.split(',').map(c => parseFloat(c.trim()));
-                if (!isNaN(lat) && !isNaN(lon) && dadosFiltrados.especialistas.some(df => df.ESPECIALISTA === e.ESPECIALISTA)) {
-                    bounds.extend([lat, lon]);
-                }
+            if (e.latitude_base && e.longitude_base) {
+                bounds.extend([e.latitude_base, e.longitude_base]);
             }
         });
     }
-    if (bounds.isValid()) map.fitBounds(bounds, { padding: [50, 50] });
+    if (bounds.isValid()) {
+        map.fitBounds(bounds, { padding: [50, 50] });
+    }
 }
 
 function mostrarLoading(mostrar) {
