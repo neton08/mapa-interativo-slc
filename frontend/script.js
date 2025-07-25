@@ -1,37 +1,53 @@
-const APIService = {
-    // COLE A URL DO SEU BIN AQUI (a que começa com https://api.jsonbin.io/v3/b/... )
+// ===================================================================
+//  ARQUIVO: script.js (FINAL - ARQUITETURA HÍBRIDA)
+// ===================================================================
+
+// --- CONFIGURAÇÃO DAS APIS ---
+const JSONBIN_CONFIG = {
+    // COLE A URL DO SEU BIN AQUI
     url: 'https://api.jsonbin.io/v3/b/68839ecb7b4b8670d8a73a5a',
+    // COLE A SUA CHAVE 'X-Master-Key' AQUI
+    apiKey: '$2a$10$ho4glL/UKIF5yCn37/l5M.p/9Pt5xG.A3Izi9G8VOX.RTkkFXMygW'
+};
 
-    // COLE A SUA CHAVE 'X-Master-Key' QUE VOCÊ ACABOU DE COPIAR AQUI
-    apiKey: '$2a$10$2d6Fwwo3IMTzavWLYo77T.59Lo4//Kn2l.xVwtswt83I248oNkESW',
+const GOOGLE_SCRIPT_CONFIG = {
+    // COLE A URL DA SUA IMPLANTAÇÃO DO GOOGLE APPS SCRIPT AQUI
+    url: 'https://script.google.com/macros/s/AKfycbyVmM9zXclNMoz-4uY75rfz_YneNakewN7yewaWNYx2mF0D4DPH2S_7aIlAtN0NdyPE9w/exec'
+};
 
+// --- SERVIÇO DE API HÍBRIDO ---
+const APIService = {
     fetchData: async () => {
         try {
-            const response = await fetch(this.url, {
-                headers: {
-                    // Usa a sua chave de API pessoal para ter permissão de leitura
-                    'X-Master-Key': this.apiKey
-                }
+            const response = await fetch(JSONBIN_CONFIG.url, {
+                headers: { 'X-Master-Key': JSONBIN_CONFIG.apiKey }
             });
-            if (!response.ok) {
-                // O erro 404 vai cair aqui, nos dando uma mensagem clara.
-                throw new Error(`Erro ${response.status}: ${response.statusText}`);
-            }
+            if (!response.ok) throw new Error(`Erro ${response.status}: ${response.statusText}`);
             const data = await response.json();
-            // A resposta do JSONBin vem dentro de um objeto 'record'
             return data.record;
         } catch (error) {
             console.error("Falha crítica ao buscar dados do JSONBin:", error);
-            alert(`Não foi possível carregar os dados do mapa: ${error.message}. Verifique a URL do Bin e a Chave de API no script.js.`);
+            alert(`Não foi possível carregar os dados do mapa: ${error.message}. Verifique a configuração do JSONBin no script.js.`);
             return [];
         }
     },
     postData: async (data) => {
-        alert('A função de adicionar usuário está desabilitada. Para adicionar, edite a planilha e cole os novos dados no JSONBin.io.');
-        return { status: 'info' };
+        try {
+            // Usamos 'no-cors' para o POST no Google Script, é mais estável.
+            const response = await fetch(GOOGLE_SCRIPT_CONFIG.url, {
+                method: 'POST',
+                mode: 'no-cors', 
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            // Como é 'no-cors', não podemos ler a resposta, mas a requisição é enviada.
+            return { status: 'success' };
+        } catch (error) {
+            console.error('Erro ao enviar dados para o Google Script:', error);
+            return { status: 'error' };
+        }
     }
 };
-
 
 // --- COMPONENTES REACT ---
 function UserManagement() {
@@ -42,10 +58,10 @@ function UserManagement() {
         const result = await APIService.postData(payload);
         setLoading(false);
         if (result.status === 'success') {
-            alert('Dados enviados com sucesso! A página será recarregada para refletir as mudanças.');
-            window.location.reload();
+            alert('Colaborador adicionado com sucesso! Por favor, atualize o Bin no site do JSONBin.io com os novos dados da planilha para que as mudanças apareçam no mapa.');
+            // Não recarrega a página, pois a mudança não é instantânea no mapa.
         } else {
-            alert('Ocorreu um erro ao adicionar o usuário.');
+            alert('Ocorreu um erro ao adicionar o colaborador.');
         }
     };
     if (loading) return React.createElement('div', null, 'Adicionando...');
@@ -85,7 +101,6 @@ function AddUserForm({ onAddUser }) {
     );
 }
 
-
 // --- LÓGICA DO MAPA (COMPLETA) ---
 
 let map;
@@ -106,9 +121,9 @@ const coresEspecialistas = {
 };
 
 const camadasBase = {
-    'osm': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }  ),
-    'topo': L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { attribution: '© OpenTopoMap' }  ),
-    'satellite': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: '© Esri' }  )
+    'osm': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }   ),
+    'topo': L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { attribution: '© OpenTopoMap' }   ),
+    'satellite': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: '© Esri' }   )
 };
 
 function getCorEspecialista(nome) {
