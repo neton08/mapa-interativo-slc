@@ -9,37 +9,44 @@ let camadasVisiveis = {
     areas: L.layerGroup()
 };
 
-// *** 1. SERVIÇO DE API SIMPLIFICADO ***
-// Centraliza a comunicação com o backend do Google Apps Script.
+// *** MUDANÇA PRINCIPAL: USO DO PROXY CORS ***
 const APIService = {
-    // Substitua esta URL pela URL da sua implantação do Google Apps Script
-    url: 'https://script.google.com/macros/s/AKfycby3bLDedFArVym5p1iGZU1F1cQnaK8vuUWk71bd9uRPxASJ-9yWpYUPnSt_nbh-Jm3sHg/exec',
+    // A URL original do seu script do Google.
+    googleScriptUrl: 'https://script.google.com/macros/s/AKfycbxJgCiehsomuB5A1R8i29fKC8gco42zWNkt1iNvK0H9C_XqpU0_KeyuAF8pio3L8H9BhA/exec',
+    
+    // O proxy que vamos usar.
+    proxyUrl: 'https://api.allorigins.win/get?url=',
 
     fetchData: async function( ) {
         try {
-            const response = await fetch(this.url);
-            if (!response.ok) throw new Error(`Erro na resposta da API: ${response.statusText}`);
+            // Construímos a nova URL: Proxy + URL do Google codificada
+            const urlParaFetch = `${this.proxyUrl}${encodeURIComponent(this.googleScriptUrl)}`;
+            
+            const response = await fetch(urlParaFetch);
+            if (!response.ok) throw new Error(`Erro na resposta do proxy: ${response.statusText}`);
+            
             const data = await response.json();
-            return Array.isArray(data) ? data : [];
+            
+            // O proxy allOrigins envolve a resposta em um objeto 'contents'.
+            // Precisamos extrair e converter o JSON que está lá dentro.
+            return JSON.parse(data.contents);
+
         } catch (error) {
-            console.error('Erro ao buscar dados:', error);
+            console.error('Erro ao buscar dados via proxy:', error);
             alert("Falha ao carregar dados do mapa. Verifique o console.");
-            return []; // Retorna um array vazio para não quebrar a aplicação
+            return [];
         }
     },
     postData: async function(data) {
         try {
-            // O Google Apps Script responde com um redirecionamento que causa erro de CORS no modo 'cors'.
-            // O modo 'no-cors' envia os dados, mas não permite ler a resposta. É um workaround comum.
-            await fetch(this.url, {
+            await fetch(this.googleScriptUrl, {
                 method: 'POST',
                 mode: 'no-cors', 
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // Usar text/plain é mais robusto para 'no-cors'
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                 body: JSON.stringify(data)
             });
             return { status: 'success' };
-        } catch (error)
-        {
+        } catch (error) {
             console.error('Erro ao enviar dados:', error);
             return { status: 'error', message: 'Falha ao enviar dados.' };
         }
