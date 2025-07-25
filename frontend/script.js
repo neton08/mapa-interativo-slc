@@ -16,15 +16,18 @@ const GOOGLE_SCRIPT_CONFIG = {
 
 // --- SERVIÇO DE API HÍBRIDO ---
 const APIService = {
-    fetchData: async ( ) => {
+    fetchData: async () => {
         try {
-            const response = await fetch(JSONBIN_CONFIG.url, { headers: { 'X-Master-Key': JSONBIN_CONFIG.apiKey } });
+            // MUDANÇA AQUI: Em vez de ler do JSONBin, lemos direto do Google.
+            const response = await fetch(GOOGLE_SCRIPT_CONFIG.url); 
             if (!response.ok) throw new Error(`Erro ${response.status}: ${response.statusText}`);
             const data = await response.json();
-            return data.record;
+            // A resposta do Google já vem no formato correto, não precisa do '.record'
+            return data; 
         } catch (error) {
-            console.error("Falha ao buscar dados do JSONBin:", error);
-            alert(`Não foi possível carregar os dados do mapa: ${error.message}.`);
+            // MUDANÇA AQUI: A mensagem de erro agora aponta para o Google Script.
+            console.error("Falha ao buscar dados do Google Script:", error);
+            alert(`Não foi possível carregar os dados do mapa: ${error.message}. Verifique a URL do Google Script.`);
             return [];
         }
     },
@@ -52,10 +55,11 @@ function UserManagement() {
         const result = await APIService.postData(payload);
         setLoading(false);
         if (result.status === 'success') {
-            alert('Entrada adicionada com sucesso na planilha! Para ver a mudança no mapa, atualize os dados no JSONBin.io e recarregue a página.');
-        } else {
-            alert('Ocorreu um erro ao adicionar a entrada.');
-        }
+             alert('Entrada adicionada com sucesso! A página será recarregada para mostrar a atualização.');
+        window.location.reload(); // Recarrega a página automaticamente
+    } else {
+        alert('Ocorreu um erro ao adicionar a entrada.');
+    }
     };
     if (loading) return React.createElement('div', null, 'Adicionando...');
     return React.createElement('div', { style: { padding: '20px' } },
