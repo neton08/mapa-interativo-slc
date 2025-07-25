@@ -1,6 +1,6 @@
 const APIService = {
     // COLE A URL DO SEU BIN AQUI (a que começa com https://api.jsonbin.io/v3/b/... )
-    url: 'https://api.jsonbin.io/v3/b/68839a4dae596e708fbba21b',
+    url: 'https://api.jsonbin.io/v3/b/68839ecb7b4b8670d8a73a5a',
 
     // COLE A SUA CHAVE 'X-Master-Key' QUE VOCÊ ACABOU DE COPIAR AQUI
     apiKey: '$2a$10$lJrU.ksPYpWjbNsxB50zk.IDDDTG8nHxxBgBj0DsiFpGT/tWyQmlW',
