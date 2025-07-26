@@ -281,7 +281,7 @@ async function carregarDados() {
                     cidadeMaisProxima: cidadeProxima.nome,
                     distanciaCidadeProxima: cidadeProxima.distancia,
                     // NOVO: Informação do grupo (pode ser adicionada posteriormente)
-                    grupo: item.GRUPO || 'Não informado'
+                    grupo: item.GRUPO || 'GRUPO'
                 });
             } catch (e) {
                 console.warn("Erro ao processar item de dados:", item, e);
