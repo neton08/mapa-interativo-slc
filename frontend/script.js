@@ -340,6 +340,7 @@ function agruparFazendas(listaDeFazendas) {
 }
 
 // ATUALIZADO: Função para criar pop-up moderno da fazenda
+// ATUALIZADO: Função para criar pop-up moderno da fazenda
 function criarPopupFazenda(fazenda) {
     const especialistaInfo = dadosOriginais.especialistas.find(e => e.nome === fazenda.especialista);
     let distanciaBase = 'N/A';
@@ -357,7 +358,7 @@ function criarPopupFazenda(fazenda) {
         <div class="popup-moderno">
             <div class="popup-header">
                 <h3><i class="fas fa-tractor"></i> ${fazenda.nome}</h3>
-                <span class="popup-grupo">${fazenda.grupo}</span>
+                <span class="popup-grupo">${fazenda.grupo || 'N/A'}</span>
             </div>
             <div class="popup-content">
                 <div class="popup-section">
@@ -371,6 +372,7 @@ function criarPopupFazenda(fazenda) {
                     <p><strong>Especialista:</strong> ${fazenda.especialista}</p>
                     <p><strong>Distância da Base:</strong> ${distanciaBase}</p>
                     <p><strong>Tempo de Deslocamento:</strong> ${tempoDeslocamento}</p>
+                    <p><strong>Grupo:</strong> ${fazenda.grupo || 'N/A'}</p>
                 </div>
             </div>
         </div>
