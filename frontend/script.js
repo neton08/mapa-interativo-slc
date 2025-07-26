@@ -11,7 +11,7 @@ const JSONBIN_CONFIG = {
 };
 const GOOGLE_SCRIPT_CONFIG = {
     // COLE A URL DA SUA IMPLANTAÇÃO DO GOOGLE APPS SCRIPT AQUI
-    url: 'https://script.google.com/macros/s/AKfycbwJWCNGcOjue7SS7aT9cIQzt2YZgwwRJIZZkNSCQVGwWpl1DmHDcOC_bkkoScXnVtdtnQ/exec'
+    url: 'https://script.google.com/macros/s/AKfycbyf53m_7dKNb-QujqvKlHmEYyiPasAY861nhtGdCK24NPJE3dXYhksI9VEksh7pmj0P9w/exec'
 };
 
 // --- SERVIÇO DE API HÍBRIDO ---
