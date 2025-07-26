@@ -357,22 +357,42 @@ function criarPopupFazenda(fazenda) {
     return `
         <div class="popup-moderno">
             <div class="popup-header">
-                <h3><i class="fas fa-tractor"></i> ${fazenda.nome}</h3>
-                <span class="popup-grupo">${fazenda.grupo || 'N/A'}</span>
+                <i class="fas fa-tractor"></i> ${fazenda.nome}
             </div>
             <div class="popup-content">
                 <div class="popup-section">
                     <h4><i class="fas fa-map-marker-alt"></i> Localização</h4>
-                    <p><strong>Cidade de Origem:</strong> ${fazenda.cidade_origem || 'N/A'}</p>
-                    <p><strong>Cidade Mais Próxima:</strong> ${fazenda.cidadeMaisProxima}</p>
-                    <p><strong>Distância da Cidade Próxima:</strong> ${formatarDistancia(fazenda.distanciaCidadeProxima)}</p>
+                    <div class="popup-info">
+                        <strong>Cidade de Origem:</strong>
+                        <span>${fazenda.cidade_origem || 'N/A'}</span>
+                    </div>
+                    <div class="popup-info">
+                        <strong>Cidade Mais Próxima:</strong>
+                        <span>${fazenda.cidadeMaisProxima}</span>
+                    </div>
+                    <div class="popup-info">
+                        <strong>Distância da Cidade:</strong>
+                        <span>${formatarDistancia(fazenda.distanciaCidadeProxima)}</span>
+                    </div>
                 </div>
                 <div class="popup-section">
-                    <h4><i class="fas fa-user"></i> Atendimento</h4>
-                    <p><strong>Especialista:</strong> ${fazenda.especialista}</p>
-                    <p><strong>Distância da Base:</strong> ${distanciaBase}</p>
-                    <p><strong>Tempo de Deslocamento:</strong> ${tempoDeslocamento}</p>
-                    <p><strong>Grupo:</strong> ${fazenda.grupo || 'N/A'}</p>
+                    <h4><i class="fas fa-user-tie"></i> Atendimento</h4>
+                    <div class="popup-info">
+                        <strong>Especialista:</strong>
+                        <span>${fazenda.especialista}</span>
+                    </div>
+                    <div class="popup-info">
+                        <strong>Distância da Base:</strong>
+                        <span>${distanciaBase}</span>
+                    </div>
+                    <div class="popup-info">
+                        <strong>Tempo de Deslocamento:</strong>
+                        <span>${tempoDeslocamento}</span>
+                    </div>
+                    <div class="popup-info">
+                        <strong>Grupo:</strong>
+                        <span>${fazenda.grupo || 'N/A'}</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -387,24 +407,41 @@ function criarPopupEspecialista(especialista, fazendasAtendidas) {
     return `
         <div class="popup-moderno">
             <div class="popup-header">
-                <h3><i class="fas fa-user"></i> ${especialista.nome}</h3>
-                <span class="popup-especialista">Especialista</span>
+                <i class="fas fa-user-tie"></i> ${especialista.nome}
             </div>
             <div class="popup-content">
                 <div class="popup-section">
-                    <h4><i class="fas fa-map-marker-alt"></i> Informações da Rota</h4>
-                    <p><strong>Cidade Base:</strong> ${especialista.cidade_base || 'N/A'}</p>
-                    <p><strong>Raio de Atuação:</strong> ${formatarDistancia(maxDist)}</p>
-                    <p><strong>Distância Média:</strong> ${formatarDistancia(avgDist)}</p>
-                    <p><strong>Tempo Médio de Deslocamento:</strong> ${calcularTempoDeslocamento(avgDist)}</p>
+                    <h4><i class="fas fa-map-marked-alt"></i> Informações da Rota</h4>
+                    <div class="popup-info">
+                        <strong>Cidade Base:</strong>
+                        <span>${especialista.cidade_base || 'N/A'}</span>
+                    </div>
+                    <div class="popup-info">
+                        <strong>Raio de Atuação:</strong>
+                        <span>${formatarDistancia(maxDist)}</span>
+                    </div>
+                    <div class="popup-info">
+                        <strong>Distância Média:</strong>
+                        <span>${formatarDistancia(avgDist)}</span>
+                    </div>
+                    <div class="popup-info">
+                        <strong>Tempo Médio:</strong>
+                        <span>${calcularTempoDeslocamento(avgDist)}</span>
+                    </div>
                 </div>
                 <div class="popup-section">
-                    <h4><i class="fas fa-list"></i> Atendimento</h4>
-                    <p><strong>Unidades Atendidas:</strong> ${fazendasAtendidas.length}</p>
-                    <div class="popup-lista">
-                        <strong>Fazendas:</strong>
-                        <ul>${listaFazendasHtml}</ul>
+                    <h4><i class="fas fa-list-check"></i> Atendimento</h4>
+                    <div class="popup-info">
+                        <strong>Unidades Atendidas:</strong>
+                        <span>${fazendasAtendidas.length}</span>
                     </div>
+                    <div class="popup-info">
+                        <strong>Fazendas:</strong>
+                        <span></span>
+                    </div>
+                    <ul class="popup-list">
+                        ${listaFazendasHtml}
+                    </ul>
                 </div>
             </div>
         </div>
@@ -515,18 +552,63 @@ function atualizarEstatisticas(fazendasAgrupadas, distanciaTotal) {
 }
 
 function criarLegenda() {
+    const legendaElement = document.getElementById('legend');
+    if (!legendaElement) return;
+    
+    // Cria o cabeçalho da legenda se não existir
+    if (!document.getElementById('legend-header')) {
+        legendaElement.innerHTML = `
+            <div class="legend-header" id="legend-header">
+                <h4>Legenda</h4>
+                <button class="legend-toggle" id="legend-toggle">−</button>
+            </div>
+            <div class="legend-content" id="legend-content"></div>
+        `;
+        
+        // Adiciona evento de clique para minimizar/maximizar
+        document.getElementById('legend-toggle').addEventListener('click', function() {
+            const content = document.getElementById('legend-content');
+            const toggleBtn = document.getElementById('legend-toggle');
+            
+            if (content.classList.contains('collapsed')) {
+                content.classList.remove('collapsed');
+                toggleBtn.textContent = '−';
+            } else {
+                content.classList.add('collapsed');
+                toggleBtn.textContent = '+';
+            }
+        });
+    }
+    
     const legendaContent = document.getElementById('legend-content');
     if (!legendaContent || !dadosFiltrados) return;
+    
     legendaContent.innerHTML = '';
     const contadores = {};
     const especialistasNosDados = new Set(dadosFiltrados.fazendas.map(f => f.especialista));
+    
     especialistasNosDados.forEach(especialista => {
-        if(especialista) contadores[especialista] = new Set(dadosFiltrados.fazendas.filter(f => f.especialista === especialista).map(f => f.nome)).size;
+        if(especialista) {
+            contadores[especialista] = new Set(
+                dadosFiltrados.fazendas.filter(f => f.especialista === especialista)
+                                     .map(f => f.nome)
+            ).size;
+        }
     });
-    Object.entries(contadores).sort().forEach(([especialista, count]) => {
-        const cor = getCorEspecialista(especialista);
-        legendaContent.innerHTML += `<div class="legend-item"><div class="legend-color" style="background-color: ${cor};"></div><span>${especialista}</span><span class="legend-count">(${count})</span></div>`;
-    });
+    
+    Object.entries(contadores)
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .forEach(([especialista, count]) => {
+            const cor = getCorEspecialista(especialista);
+            const item = document.createElement('div');
+            item.className = 'legend-item';
+            item.innerHTML = `
+                <div class="legend-color" style="background-color: ${cor};"></div>
+                <span>${especialista}</span>
+                <span class="legend-count">(${count})</span>
+            `;
+            legendaContent.appendChild(item);
+        });
 }
 
 function aplicarFiltros() {
