@@ -10,6 +10,8 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+    <!-- Leaflet Routing Machine CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
     
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -68,11 +70,14 @@
                     <button id="resetar-filtros" class="reset-btn">
                         <i class="fas fa-refresh"></i> Resetar Filtros
                     </button>
+                    <button id="adicionar-gestor-btn" class="add-gestor-btn">
+                        <i class="fas fa-plus"></i> Adicionar Gestor
+                    </button>
                 </div>
             </div>
         </div>
 
-        <!-- CONTEÚDO PRINCIPAL (MAPA ) -->
+        <!-- CONTEÚDO PRINCIPAL (MAPA) -->
         <div class="main-content">
             <div id="map"></div>
 
@@ -103,10 +108,25 @@
         </div>
     </div>
 
+    <!-- MODAL PARA ADICIONAR GESTOR -->
+    <div id="add-gestor-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal-btn">&times;</span>
+            <div id="add-gestor-form-container"></div>
+        </div>
+    </div>
+
     <!-- SCRIPTS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+    <!-- Leaflet Routing Machine JS -->
+    <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+    <!-- React para o formulário de adicionar gestor -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="script.js"></script>
 
 </body>
 </html>
+
+

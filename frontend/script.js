@@ -1,5 +1,5 @@
 // ===================================================================
-//  ARQUIVO: script.js (VERSÃO COMPLETA E DIVIDIDA)
+//  ARQUIVO: script.js (VERSÃO CORRIGIDA COM TODAS AS FUNCIONALIDADES)
 // ===================================================================
 
 document.addEventListener('DOMContentLoaded', inicializarAplicacao);
@@ -11,9 +11,14 @@ const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxDGlKNbAUAiC
 let map;
 let dadosOriginais = null;
 let dadosFiltrados = null;
+let cidadesBrasil = null; // Para armazenar dados do GeoJSON
 let camadasVisiveis = {
     especialistas: L.markerClusterGroup({
-        iconCreateFunction: cluster => L.divIcon({ html: `<div class="custom-marker-icon especialista" style="background-color: #34495e;">${cluster.getChildCount( )}</div>`, className: '', iconSize: [32, 32] })
+        iconCreateFunction: cluster => L.divIcon({ 
+            html: `<div class="custom-marker-icon especialista" style="background-color: #34495e;">${cluster.getChildCount()}</div>`, 
+            className: '', 
+            iconSize: [32, 32] 
+        })
     }),
     fazendas: L.layerGroup(),
     rotas: L.layerGroup(),
@@ -27,7 +32,9 @@ function inicializarAplicacao() {
     mostrarLoading(true);
     inicializarMapa();
     configurarEventListeners();
-    carregarDados();
+    carregarCidadesBrasil().then(() => {
+        carregarDados();
+    });
 }
 
 function inicializarMapa() {
@@ -35,13 +42,26 @@ function inicializarMapa() {
     map = L.map('map', { center: [-15.7, -47.9], zoom: 4, zoomControl: false });
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; OpenStreetMap &copy; CARTO'
-    } ).addTo(map);
+    }).addTo(map);
     L.control.zoom({ position: 'bottomright' }).addTo(map);
     Object.values(camadasVisiveis).forEach(layer => layer.addTo(map));
     console.log("Mapa inicializado.");
 }
 
-// --- DADOS ---
+// --- CARREGAMENTO DE DADOS ---
+async function carregarCidadesBrasil() {
+    try {
+        console.log("Carregando dados das cidades brasileiras...");
+        const response = await fetch('./cidadebrasil.geojson');
+        if (!response.ok) throw new Error(`Erro ao carregar GeoJSON: ${response.statusText}`);
+        cidadesBrasil = await response.json();
+        console.log(`${cidadesBrasil.features.length} cidades carregadas.`);
+    } catch (error) {
+        console.error("Erro ao carregar cidades:", error);
+        cidadesBrasil = null;
+    }
+}
+
 async function carregarDados() {
     console.log("Buscando dados da API do Google...");
     try {
@@ -138,7 +158,7 @@ function atualizarVisualizacao() {
 
     desenharFazendas(fazendasComLatLng);
     desenharEspecialistas(especialistasComLatLng);
-    desenharRotas(especialistasComLatLng, fazendasComLatLng);
+    desenharRotasComEstradas(especialistasComLatLng, fazendasComLatLng);
     desenharAreasAtuacao(especialistasComLatLng, fazendasComLatLng);
 
     criarLegenda(dadosFiltrados.especialistas);
@@ -150,8 +170,15 @@ function atualizarVisualizacao() {
 function desenharFazendas(fazendas) {
     fazendas.forEach(fazenda => {
         const cor = getCorEspecialista(fazenda.especialista);
-        const icon = L.divIcon({ html: `<div class="custom-marker-icon fazenda" style="background-color: ${cor};"><i class="fa-solid fa-tractor"></i></div>`, className: '', iconSize: [28, 28], iconAnchor: [14, 14] });
-        L.marker(fazenda.latLng, { icon }).addTo(camadasVisiveis.fazendas).on('click', () => mostrarInfoPanel(fazenda));
+        const icon = L.divIcon({ 
+            html: `<div class="custom-marker-icon fazenda" style="background-color: ${cor};"><i class="fa-solid fa-tractor"></i></div>`, 
+            className: '', 
+            iconSize: [28, 28], 
+            iconAnchor: [14, 14] 
+        });
+        L.marker(fazenda.latLng, { icon })
+            .addTo(camadasVisiveis.fazendas)
+            .on('click', () => mostrarInfoPanelFazenda(fazenda));
     });
 }
 
@@ -159,36 +186,73 @@ function desenharEspecialistas(especialistas) {
     especialistas.forEach(especialista => {
         if (especialista.unidadesAtendidas.length === 0) return;
         const cor = getCorEspecialista(especialista.nome);
-        const icon = L.divIcon({ html: `<div class="custom-marker-icon especialista" style="background-color: ${cor};"><i class="fa-solid fa-user"></i></div>`, className: '', iconSize: [32, 32], iconAnchor: [16, 16] });
-        L.marker(especialista.latLngBase, { icon }).addTo(camadasVisiveis.especialistas);
+        const icon = L.divIcon({ 
+            html: `<div class="custom-marker-icon especialista" style="background-color: ${cor};"><i class="fa-solid fa-user"></i></div>`, 
+            className: '', 
+            iconSize: [32, 32], 
+            iconAnchor: [16, 16] 
+        });
+        L.marker(especialista.latLngBase, { icon })
+            .addTo(camadasVisiveis.especialistas)
+            .on('click', () => mostrarInfoPanelEspecialista(especialista));
     });
 }
 
-function desenharRotas(especialistas, fazendas) {
+// NOVA FUNÇÃO: Desenhar rotas que seguem estradas usando Leaflet Routing Machine
+function desenharRotasComEstradas(especialistas, fazendas) {
     const especialistaMap = new Map(especialistas.map(e => [e.nome, e]));
+    
     fazendas.forEach(fazenda => {
         const especialista = especialistaMap.get(fazenda.especialista);
         if (especialista) {
             const cor = getCorEspecialista(especialista.nome);
-            L.polyline([especialista.latLngBase, fazenda.latLng], { color: cor, weight: 2, opacity: 0.5, dashArray: '5, 5' }).addTo(camadasVisiveis.rotas);
+            
+            // Usar Leaflet Routing Machine para criar rota que segue estradas
+            const routingControl = L.Routing.control({
+                waypoints: [
+                    L.latLng(especialista.latLngBase.lat, especialista.latLngBase.lng),
+                    L.latLng(fazenda.latLng.lat, fazenda.latLng.lng)
+                ],
+                routeWhileDragging: false,
+                addWaypoints: false,
+                createMarker: function() { return null; }, // Não criar marcadores
+                lineOptions: {
+                    styles: [{ color: cor, weight: 3, opacity: 0.7 }]
+                },
+                show: false, // Não mostrar instruções
+                collapsible: false
+            });
+            
+            routingControl.addTo(camadasVisiveis.rotas);
         }
     });
 }
 
 function desenharAreasAtuacao(especialistas, fazendas) {
     const fazendaMap = new Map(fazendas.map(f => [f.nome, f]));
+    
     especialistas.forEach(especialista => {
-        const distancias = especialista.unidadesAtendidas.map(nome => fazendaMap.get(nome)).filter(Boolean).map(fazenda => especialista.latLngBase.distanceTo(fazenda.latLng));
+        const distancias = especialista.unidadesAtendidas
+            .map(nome => fazendaMap.get(nome))
+            .filter(Boolean)
+            .map(fazenda => especialista.latLngBase.distanceTo(fazenda.latLng));
+        
         if (distancias.length > 0) {
             const maxDist = Math.max(...distancias);
             const cor = getCorEspecialista(especialista.nome);
-            L.circle(especialista.latLngBase, { radius: maxDist, color: cor, fillColor: cor, fillOpacity: 0.08, weight: 1.5 }).addTo(camadasVisiveis.areas);
+            L.circle(especialista.latLngBase, {
+                radius: maxDist,
+                color: cor,
+                fillColor: cor,
+                fillOpacity: 0.08,
+                weight: 1.5
+            }).addTo(camadasVisiveis.areas);
         }
     });
 }
 
-// --- PAINEL DE INFORMAÇÕES ---
-async function mostrarInfoPanel(fazenda) {
+// --- PAINÉIS DE INFORMAÇÕES ---
+async function mostrarInfoPanelFazenda(fazenda) {
     const infoPanel = document.getElementById('info-panel');
     const contentDiv = document.getElementById('info-panel-content');
     contentDiv.innerHTML = '<div style="text-align: center; padding: 20px;"><i class="fas fa-spinner fa-spin fa-2x"></i><p>Carregando detalhes...</p></div>';
@@ -201,7 +265,10 @@ async function mostrarInfoPanel(fazenda) {
     const cidadeProximaInfo = await getCidadeMaisProxima(fazenda.latLng);
     const distBaseUnidade = especialistaLatLng.distanceTo(fazenda.latLng);
     const tempoDeslocamento = (distBaseUnidade / 1000) / 70; // Média de 70 km/h
-    const raioAtuacao = Math.max(0, ...especialista.unidadesAtendidas.map(nome => dadosOriginais.fazendas.find(f => f.nome === nome)).filter(Boolean).map(f => especialistaLatLng.distanceTo(L.latLng(f.latLng.lat, f.latLng.lng))));
+    const raioAtuacao = Math.max(0, ...especialista.unidadesAtendidas
+        .map(nome => dadosOriginais.fazendas.find(f => f.nome === nome))
+        .filter(Boolean)
+        .map(f => especialistaLatLng.distanceTo(L.latLng(f.latLng.lat, f.latLng.lng))));
 
     contentDiv.innerHTML = `
         <h3><i class="fa-solid fa-tractor" style="color: ${getCorEspecialista(especialista.nome)};"></i> ${fazenda.nome}</h3>
@@ -222,7 +289,46 @@ async function mostrarInfoPanel(fazenda) {
         </div>`;
 }
 
-function esconderInfoPanel() { document.getElementById('info-panel').classList.remove('visible'); }
+// NOVA FUNÇÃO: Mostrar informações do especialista
+async function mostrarInfoPanelEspecialista(especialista) {
+    const infoPanel = document.getElementById('info-panel');
+    const contentDiv = document.getElementById('info-panel-content');
+    contentDiv.innerHTML = '<div style="text-align: center; padding: 20px;"><i class="fas fa-spinner fa-spin fa-2x"></i><p>Carregando detalhes...</p></div>';
+    infoPanel.classList.add('visible');
+
+    const especialistaLatLng = L.latLng(especialista.latLngBase.lat, especialista.latLngBase.lng);
+    
+    // Calcular estatísticas
+    const fazendasAtendidas = dadosOriginais.fazendas.filter(f => f.especialista === especialista.nome);
+    const distancias = fazendasAtendidas.map(f => especialistaLatLng.distanceTo(L.latLng(f.latLng.lat, f.latLng.lng)));
+    const raioAtuacao = distancias.length > 0 ? Math.max(...distancias) : 0;
+    const mediaKm = distancias.length > 0 ? distancias.reduce((a, b) => a + b, 0) / distancias.length : 0;
+
+    // Lista de unidades atendidas
+    const listaUnidades = fazendasAtendidas.map(f => `<li>${f.nome}</li>`).join('');
+
+    contentDiv.innerHTML = `
+        <h3><i class="fa-solid fa-user" style="color: ${getCorEspecialista(especialista.nome)};"></i> ${especialista.nome}</h3>
+        <p class="sub-header">Gestor: ${especialista.gestor}</p>
+        
+        <div class="info-section"><h4><i class="fa-solid fa-chart-line"></i> Estatísticas</h4>
+            <div class="info-item"><span class="label"><i class="fa-solid fa-compass-drafting"></i> Raio de Atuação</span><span class="value">${formatarDistancia(raioAtuacao)}</span></div>
+            <div class="info-item"><span class="label"><i class="fa-solid fa-calculator"></i> Média de KM</span><span class="value">${formatarDistancia(mediaKm)}</span></div>
+            <div class="info-item"><span class="label"><i class="fa-solid fa-warehouse"></i> Unidades Atendidas</span><span class="value">${fazendasAtendidas.length}</span></div>
+        </div>
+        
+        <div class="info-section"><h4><i class="fa-solid fa-map-location-dot"></i> Base</h4>
+            <div class="info-item"><span class="label"><i class="fa-solid fa-street-view"></i> Cidade Base</span><span class="value">${especialista.cidade_base}</span></div>
+        </div>
+        
+        <div class="info-section"><h4><i class="fa-solid fa-list"></i> Unidades Atendidas</h4>
+            <ul style="margin-top: 10px; padding-left: 20px; max-height: 200px; overflow-y: auto;">${listaUnidades}</ul>
+        </div>`;
+}
+
+function esconderInfoPanel() { 
+    document.getElementById('info-panel').classList.remove('visible'); 
+}
 
 // --- FILTROS E EVENTOS ---
 function configurarEventListeners() {
@@ -231,7 +337,19 @@ function configurarEventListeners() {
     document.getElementById('resetar-filtros').addEventListener('click', resetarFiltros);
     document.getElementById('close-info-panel').addEventListener('click', esconderInfoPanel);
     document.getElementById('toggle-legend').addEventListener('click', toggleLegenda);
-    document.querySelectorAll('.layer-group input[type="checkbox"]').forEach(cb => cb.addEventListener('change', e => toggleLayer(camadasVisiveis[e.target.id.replace('show-', '')], e.target.checked)));
+    document.getElementById('adicionar-gestor-btn').addEventListener('click', abrirModalAdicionarGestor);
+    
+    // Modal
+    document.querySelector('.close-modal-btn').addEventListener('click', fecharModalAdicionarGestor);
+    window.addEventListener('click', (e) => {
+        if (e.target === document.getElementById('add-gestor-modal')) {
+            fecharModalAdicionarGestor();
+        }
+    });
+    
+    document.querySelectorAll('.layer-group input[type="checkbox"]').forEach(cb => 
+        cb.addEventListener('change', e => toggleLayer(camadasVisiveis[e.target.id.replace('show-', '')], e.target.checked))
+    );
 }
 
 function preencherFiltros() {
@@ -279,6 +397,168 @@ function resetarFiltros() {
     esconderInfoPanel();
 }
 
+// --- MODAL PARA ADICIONAR GESTOR ---
+function abrirModalAdicionarGestor() {
+    const modal = document.getElementById('add-gestor-modal');
+    const container = document.getElementById('add-gestor-form-container');
+    
+    // Renderizar formulário React
+    const formElement = React.createElement(FormularioAdicionarGestor, {
+        onSubmit: handleAdicionarGestor,
+        onCancel: fecharModalAdicionarGestor
+    });
+    
+    ReactDOM.render(formElement, container);
+    modal.style.display = 'block';
+}
+
+function fecharModalAdicionarGestor() {
+    document.getElementById('add-gestor-modal').style.display = 'none';
+}
+
+async function handleAdicionarGestor(dadosFormulario) {
+    try {
+        const response = await fetch(GOOGLE_SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'addEntrada', ...dadosFormulario })
+        });
+        
+        alert('Entrada adicionada com sucesso! A página será recarregada para mostrar a atualização.');
+        window.location.reload();
+    } catch (error) {
+        console.error('Erro ao adicionar entrada:', error);
+        alert('Ocorreu um erro ao adicionar a entrada.');
+    }
+}
+
+// --- COMPONENTE REACT PARA FORMULÁRIO ---
+function FormularioAdicionarGestor({ onSubmit, onCancel }) {
+    const [formData, setFormData] = React.useState({
+        GESTOR: '',
+        ESPECIALISTA: '',
+        CIDADE_BASE: '',
+        COORDENADAS_CIDADE: '',
+        UNIDADE: '',
+        COORDENADAS_UNIDADE: '',
+        GRUPO: ''
+    });
+    const [loading, setLoading] = React.useState(false);
+
+    const handleChange = (e) => {
+        setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        await onSubmit(formData);
+        setLoading(false);
+    };
+
+    return React.createElement('div', { className: 'form-container' },
+        React.createElement('h2', null, 'Adicionar Nova Entrada'),
+        React.createElement('form', { onSubmit: handleSubmit },
+            React.createElement('div', { className: 'form-group' },
+                React.createElement('label', null, 'Gestor:'),
+                React.createElement('input', {
+                    type: 'text',
+                    name: 'GESTOR',
+                    value: formData.GESTOR,
+                    onChange: handleChange,
+                    required: true,
+                    placeholder: 'Nome do gestor'
+                })
+            ),
+            React.createElement('div', { className: 'form-group' },
+                React.createElement('label', null, 'Especialista:'),
+                React.createElement('input', {
+                    type: 'text',
+                    name: 'ESPECIALISTA',
+                    value: formData.ESPECIALISTA,
+                    onChange: handleChange,
+                    required: true,
+                    placeholder: 'Nome do especialista'
+                })
+            ),
+            React.createElement('div', { className: 'form-group' },
+                React.createElement('label', null, 'Cidade Base:'),
+                React.createElement('input', {
+                    type: 'text',
+                    name: 'CIDADE_BASE',
+                    value: formData.CIDADE_BASE,
+                    onChange: handleChange,
+                    required: true,
+                    placeholder: 'Cidade de atuação'
+                })
+            ),
+            React.createElement('div', { className: 'form-group' },
+                React.createElement('label', null, 'Coordenadas da Cidade (lat, lng):'),
+                React.createElement('input', {
+                    type: 'text',
+                    name: 'COORDENADAS_CIDADE',
+                    value: formData.COORDENADAS_CIDADE,
+                    onChange: handleChange,
+                    required: true,
+                    placeholder: 'Ex: -18.78, -52.60'
+                })
+            ),
+            React.createElement('div', { className: 'form-group' },
+                React.createElement('label', null, 'Unidade/Fazenda:'),
+                React.createElement('input', {
+                    type: 'text',
+                    name: 'UNIDADE',
+                    value: formData.UNIDADE,
+                    onChange: handleChange,
+                    required: true,
+                    placeholder: 'Nome da fazenda/unidade'
+                })
+            ),
+            React.createElement('div', { className: 'form-group' },
+                React.createElement('label', null, 'Coordenadas da Unidade (lat, lng):'),
+                React.createElement('input', {
+                    type: 'text',
+                    name: 'COORDENADAS_UNIDADE',
+                    value: formData.COORDENADAS_UNIDADE,
+                    onChange: handleChange,
+                    required: true,
+                    placeholder: 'Ex: -18.78, -52.60'
+                })
+            ),
+            React.createElement('div', { className: 'form-group' },
+                React.createElement('label', null, 'Grupo:'),
+                React.createElement('input', {
+                    type: 'text',
+                    name: 'GRUPO',
+                    value: formData.GRUPO,
+                    onChange: handleChange,
+                    placeholder: 'Nome do grupo (opcional)'
+                })
+            ),
+            React.createElement('div', { style: { display: 'flex', gap: '10px' } },
+                React.createElement('button', {
+                    type: 'submit',
+                    className: 'submit-btn',
+                    disabled: loading
+                }, loading ? 'Adicionando...' : 'Adicionar na Planilha'),
+                React.createElement('button', {
+                    type: 'button',
+                    onClick: onCancel,
+                    style: { 
+                        padding: '12px', 
+                        background: '#95a5a6', 
+                        color: 'white', 
+                        border: 'none', 
+                        borderRadius: '4px', 
+                        cursor: 'pointer' 
+                    }
+                }, 'Cancelar')
+            )
+        )
+    );
+}
+
 // --- FUNÇÕES UTILITÁRIAS ---
 function getCorEspecialista(nome) {
     if (!nome) return '#95a5a6';
@@ -292,25 +572,29 @@ function getCorEspecialista(nome) {
     return coresEspecialistas[nome];
 }
 
+// FUNÇÃO MELHORADA: Usar GeoJSON das cidades brasileiras
 async function getCidadeMaisProxima(latLng) {
-    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latLng.lat}&lon=${latLng.lng}&zoom=10&addressdetails=1`;
-    try {
-        const response = await fetch(url );
-        const data = await response.json();
-        if (data && data.address) {
-            const ad = data.address;
-            const nomeCidade = ad.city || ad.town || ad.village || 'Não encontrada';
-            const cidadeLatLng = L.latLng(data.lat, data.lon);
-            return {
-                nome: `${nomeCidade}, ${ad.state_code || ''}`,
-                distancia: latLng.distanceTo(cidadeLatLng)
-            };
-        }
-        return { nome: 'Não encontrada', distancia: 0 };
-    } catch (error) {
-        console.error("Erro ao buscar cidade mais próxima:", error);
-        return { nome: 'Erro na busca', distancia: 0 };
+    if (!cidadesBrasil || !cidadesBrasil.features) {
+        return { nome: 'Dados não disponíveis', distancia: 0 };
     }
+
+    let cidadeMaisProxima = null;
+    let menorDistancia = Infinity;
+
+    cidadesBrasil.features.forEach(feature => {
+        const cidadeLatLng = L.latLng(feature.geometry.coordinates[1], feature.geometry.coordinates[0]);
+        const distancia = latLng.distanceTo(cidadeLatLng);
+        
+        if (distancia < menorDistancia) {
+            menorDistancia = distancia;
+            cidadeMaisProxima = feature.properties.nome;
+        }
+    });
+
+    return {
+        nome: cidadeMaisProxima || 'Não encontrada',
+        distancia: menorDistancia
+    };
 }
 
 function formatarDistancia(metros) {
@@ -362,3 +646,4 @@ function toggleLegenda() {
     icon.classList.toggle('fa-chevron-down');
     icon.classList.toggle('fa-chevron-up');
 }
+
